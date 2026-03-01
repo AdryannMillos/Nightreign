@@ -10,7 +10,8 @@ A transparent desktop overlay for **Elden Ring: Nightreign** that tracks the Nig
 - **Level Auto-Detection (OCR)** — Reads your level number from the screen automatically
 - **Runes Missing** — Shows how many runes you need for the next level
 - **Rune Count (OCR)** — Reads your current rune count from the screen
-- **Click-through overlay** — Sits on top of the game without blocking any input
+- **Boss Weaknesses** — Shows damage type icons (weak / resistant) for each boss, cycled with hotkeys
+- **Click-through overlay** — Fully click-through; everything controlled via hotkeys
 
 ## Requirements
 
@@ -36,6 +37,9 @@ npm start
 | F9  | Open OCR calibration (3-step: runes, level, day text) |
 | F10 | OCR speed faster |
 | F11 | OCR speed slower |
+| Ctrl+Alt+B | Toggle boss info panel |
+| Ctrl+Alt+← | Previous boss |
+| Ctrl+Alt+→ | Next boss |
 
 ## First Run — OCR Calibration
 

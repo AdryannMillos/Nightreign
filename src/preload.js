@@ -13,7 +13,7 @@ contextBridge.exposeInMainWorld('nightreign', {
   // Overlay
   onVisibilityToggle: (cb) => ipcRenderer.on('overlay:toggle', (_e) => cb()),
 
-  // Calibration (two-step: runes then level)
+  // Calibration
   onCalibrationStart: (cb) => ipcRenderer.on('calibration:start', (_e) => cb()),
   onCalibrationEnd: (cb) => ipcRenderer.on('calibration:end', (_e) => cb()),
   sendCalibrationRegion: (type, region) => ipcRenderer.send('calibration:region', type, region),
@@ -26,4 +26,10 @@ contextBridge.exposeInMainWorld('nightreign', {
 
   // Toast notifications
   onToast: (cb) => ipcRenderer.on('toast', (_e, msg) => cb(msg)),
+
+  // Boss info
+  onBossData: (cb) => ipcRenderer.on('boss:data', (_e, data) => cb(data)),
+  onBossToggle: (cb) => ipcRenderer.on('boss:toggle', (_e) => cb()),
+  onBossPrev: (cb) => ipcRenderer.on('boss:prev', (_e) => cb()),
+  onBossNext: (cb) => ipcRenderer.on('boss:next', (_e) => cb()),
 });

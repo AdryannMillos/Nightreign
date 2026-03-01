@@ -20,6 +20,8 @@ body {
   padding: 4px 12px;
 }
 
+/* ── Timer & Runes ────────────────────────── */
+
 #line-timer {
   font-size: 15px;
   font-weight: 700;
@@ -33,9 +35,7 @@ body {
   margin-bottom: 2px;
 }
 
-#line-timer.hidden {
-  display: none;
-}
+#line-timer.hidden { display: none; }
 
 #line-timer.shrinking {
   color: #c9302c;
@@ -65,6 +65,100 @@ body {
   white-space: nowrap;
 }
 
+/* ── Boss Panel ───────────────────────────── */
+
+#boss-panel {
+  margin-top: 6px;
+  text-align: right;
+}
+
+#boss-panel.hidden { display: none; }
+
+#boss-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #c9a84c;
+  text-shadow:
+    0 0 4px rgba(0, 0, 0, 0.9),
+    1px 1px 2px rgba(0, 0, 0, 0.9);
+  margin-bottom: 4px;
+}
+
+.boss-phase {
+  margin-bottom: 3px;
+}
+
+.boss-phase-name {
+  font-size: 9px;
+  font-weight: 600;
+  color: #887858;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.9);
+  margin-bottom: 2px;
+}
+
+.icon-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 3px;
+  margin-bottom: 2px;
+}
+
+.icon-row img {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+}
+
+.icon-row.weak img {
+  border: 1.5px solid rgba(92, 184, 92, 0.8);
+}
+
+.icon-row.resistant img {
+  border: 1.5px solid rgba(201, 48, 44, 0.8);
+  opacity: 0.85;
+}
+
+.icon-label {
+  font-size: 8px;
+  font-weight: 600;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.9);
+  margin-right: 2px;
+  align-self: center;
+}
+
+.icon-label.weak { color: #5cb85c; }
+.icon-label.resistant { color: #c9302c; }
+
+.boss-nights {
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(136, 120, 88, 0.4);
+}
+
+.boss-night-row {
+  font-size: 11px;
+  font-weight: 700;
+  color: #c9a84c;
+  text-shadow:
+    0 0 4px rgba(0, 0, 0, 0.9),
+    1px 1px 2px rgba(0, 0, 0, 0.9);
+  margin-bottom: 3px;
+  text-align: right;
+}
+
+.boss-night-row:last-child { margin-bottom: 0; }
+
+.boss-night-label {
+  margin-right: 4px;
+}
+
+.boss-night-list {
+  font-weight: 700;
+}
+
+/* ── Toast ────────────────────────────────── */
+
 #toast {
   font-size: 11px;
   font-weight: 600;
@@ -76,6 +170,4 @@ body {
   transition: opacity 0.3s ease;
 }
 
-#toast.hidden {
-  display: none;
-}
+#toast.hidden { display: none; }

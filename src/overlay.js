@@ -3,11 +3,17 @@ const $ = (sel) => document.querySelector(sel);
 const lineTimer = $('#line-timer');
 const lineRunes = $('#line-runes');
 const toastEl = $('#toast');
+const bossPanel = $('#boss-panel');
+const bossNameEl = $('#boss-name');
+const bossPhasesEl = $('#boss-phases');
 
 let currentRunesForNext = null;
 let currentRunes = null;
 let currentLevelNum = 1;
 let isMaxLevel = false;
+let bosses = [];
+let currentBossIndex = 0;
+let bossVisible = true;
 
 function formatTime(totalSeconds) {
   const m = Math.floor(totalSeconds / 60);
@@ -86,6 +92,116 @@ function updateRuneDisplay() {
 
   lineRunes.textContent = `Lv. ${currentLevelNum}  ·  ${runeText}`;
 }
+
+// ─── Boss Panel ─────────────────────────────────────────────────────
+
+window.nightreign.onBossData((data) => {
+  bosses = data;
+  if (bosses.length > 0) renderBoss();
+});
+
+function renderBoss() {
+  if (!bosses.length) return;
+  const boss = bosses[currentBossIndex];
+  bossNameEl.textContent = boss.name;
+  bossPhasesEl.innerHTML = '';
+
+  for (const phase of boss.phases) {
+    const div = document.createElement('div');
+    div.className = 'boss-phase';
+
+    if (phase.phaseName) {
+      const nameEl = document.createElement('div');
+      nameEl.className = 'boss-phase-name';
+      nameEl.textContent = phase.phaseName;
+      div.appendChild(nameEl);
+    }
+
+    if (phase.weak.length) {
+      const row = document.createElement('div');
+      row.className = 'icon-row weak';
+      const label = document.createElement('span');
+      label.className = 'icon-label weak';
+      label.textContent = '+';
+      row.appendChild(label);
+      for (const iconSrc of phase.weak) {
+        const img = document.createElement('img');
+        img.src = iconSrc;
+        row.appendChild(img);
+      }
+      div.appendChild(row);
+    }
+
+    if (phase.resistant.length) {
+      const row = document.createElement('div');
+      row.className = 'icon-row resistant';
+      const label = document.createElement('span');
+      label.className = 'icon-label resistant';
+      label.textContent = '−';
+      row.appendChild(label);
+      for (const iconSrc of phase.resistant) {
+        const img = document.createElement('img');
+        img.src = iconSrc;
+        row.appendChild(img);
+      }
+      div.appendChild(row);
+    }
+
+    bossPhasesEl.appendChild(div);
+  }
+
+  if (boss.night1?.length || boss.night2?.length) {
+    const nightsDiv = document.createElement('div');
+    nightsDiv.className = 'boss-nights';
+
+    if (boss.night1?.length) {
+      const n1 = document.createElement('div');
+      n1.className = 'boss-night-row';
+      const label1 = document.createElement('span');
+      label1.className = 'boss-night-label';
+      label1.textContent = 'Night 1:';
+      n1.appendChild(label1);
+      const list1 = document.createElement('span');
+      list1.className = 'boss-night-list';
+      list1.textContent = boss.night1.join(', ');
+      n1.appendChild(list1);
+      nightsDiv.appendChild(n1);
+    }
+
+    if (boss.night2?.length) {
+      const n2 = document.createElement('div');
+      n2.className = 'boss-night-row';
+      const label2 = document.createElement('span');
+      label2.className = 'boss-night-label';
+      label2.textContent = 'Night 2:';
+      n2.appendChild(label2);
+      const list2 = document.createElement('span');
+      list2.className = 'boss-night-list';
+      list2.textContent = boss.night2.join(', ');
+      n2.appendChild(list2);
+      nightsDiv.appendChild(n2);
+    }
+
+    bossPhasesEl.appendChild(nightsDiv);
+  }
+}
+
+window.nightreign.onBossToggle(() => {
+  bossVisible = !bossVisible;
+  bossPanel.classList.toggle('hidden', !bossVisible);
+});
+
+window.nightreign.onBossPrev(() => {
+  if (!bosses.length) return;
+  currentBossIndex = (currentBossIndex - 1 + bosses.length) % bosses.length;
+  renderBoss();
+});
+
+window.nightreign.onBossNext(() => {
+  if (!bosses.length) return;
+  currentBossIndex = (currentBossIndex + 1) % bosses.length;
+  renderBoss();
+});
 
 // ─── F5 Visibility Toggle (opacity) ────────────────────────────────
 

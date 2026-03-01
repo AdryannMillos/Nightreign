@@ -8,8 +8,10 @@ const {
   nativeImage,
 } = require('electron');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const settings = require('./settings');
 const gameData = require('./game-data');
+const bossData = require('./boss-data');
 const ocrWorker = require('./ocr-worker');
 
 let overlayWin = null;
@@ -31,7 +33,7 @@ function createOverlayWindow() {
   const cfg = settings.get();
   const display = screen.getPrimaryDisplay();
   const overlayWidth = 300;
-  const overlayHeight = 80;
+  const overlayHeight = 300;
   const posX = display.size.width - overlayWidth - 10;
   const posY = 100;
 
@@ -54,7 +56,7 @@ function createOverlayWindow() {
     },
   });
 
-  overlayWin.setIgnoreMouseEvents(true, { forward: true });
+  overlayWin.setIgnoreMouseEvents(true);
   overlayWin.setAlwaysOnTop(true, 'screen-saver');
   overlayWin.setVisibleOnAllWorkspaces(true);
   overlayWin.showInactive();
@@ -74,6 +76,7 @@ function createOverlayWindow() {
   overlayWin.webContents.once('did-finish-load', () => {
     overlayWin.webContents.send('settings:load', cfg);
     sendLevelUpdate();
+    sendBossData();
   });
 
   overlayWin.on('closed', () => {
@@ -434,6 +437,28 @@ function adjustOCRSpeed(deltaMs) {
 
 // ─── Hotkeys ────────────────────────────────────────────────────────
 
+// ─── Boss Data ──────────────────────────────────────────────────────
+
+function sendBossData() {
+  if (!overlayWin) return;
+
+  const data = bossData.BOSSES.map((boss) => ({
+    id: boss.id,
+    name: boss.name,
+    phases: boss.phases.map((phase) => ({
+      phaseName: phase.phaseName,
+      weak: phase.weak.map((t) => pathToFileURL(bossData.iconPath(t)).href),
+      resistant: phase.resistant.map((t) => pathToFileURL(bossData.iconPath(t)).href),
+    })),
+    night1: boss.night1 || [],
+    night2: boss.night2 || [],
+  }));
+
+  overlayWin.webContents.send('boss:data', data);
+}
+
+// ─── Hotkeys ────────────────────────────────────────────────────────
+
 function registerHotkeys() {
   const keys = settings.get().hotkeys;
 
@@ -472,6 +497,18 @@ function registerHotkeys() {
       createCalibrationWindow();
     }
   });
+
+  globalShortcut.register('Control+Alt+B', () => {
+    if (overlayWin) overlayWin.webContents.send('boss:toggle');
+  });
+
+  globalShortcut.register('Control+Alt+Left', () => {
+    if (overlayWin) overlayWin.webContents.send('boss:prev');
+  });
+
+  globalShortcut.register('Control+Alt+Right', () => {
+    if (overlayWin) overlayWin.webContents.send('boss:next');
+  });
 }
 
 // ─── IPC Handlers ───────────────────────────────────────────────────
@@ -492,6 +529,7 @@ function setupIPC() {
       startOCR();
     }
   });
+
 }
 
 // ─── App Lifecycle ──────────────────────────────────────────────────
