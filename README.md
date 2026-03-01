@@ -4,6 +4,8 @@ A transparent desktop overlay for **Elden Ring: Nightreign** that tracks the Nig
 
 ## Features
 
+- **Ultra-minimal UI** — Two floating text lines, no box or borders, just clean text with drop shadow
+- **Auto Day Detection (OCR)** — Detects "Day 1" / "Dia 1" etc. on screen and starts the timer automatically
 - **Storm Timer** — Phase-by-phase countdown: Storm, Shrinking, Storm 2, Shrinking 2, Boss
 - **Level Auto-Detection (OCR)** — Reads your level number from the screen automatically
 - **Runes Missing** — Shows how many runes you need for the next level
@@ -27,11 +29,13 @@ npm start
 
 | Key | Action |
 |-----|--------|
-| F5  | Toggle overlay visibility |
+| F5  | Toggle overlay visibility (fully hide / show) |
 | F6  | Start day timer (press again for Day 2, again for Day 3) |
 | F7  | Manual level up (+1) |
 | F8  | Manual level down (-1) |
 | F9  | Open OCR calibration (2-step: runes then level) |
+| F10 | OCR speed faster |
+| F11 | OCR speed slower |
 
 ## First Run — OCR Calibration
 
@@ -40,10 +44,13 @@ npm start
 3. **Step 1**: Draw a rectangle over the **rune counter number** (top-right of the screen)
 4. **Step 2**: Draw a rectangle over the **level number** (top-left, near the health bar)
 5. The overlay will begin reading both values automatically every 3 seconds
+6. Day detection works automatically — no calibration needed for that
 
 ## How It Works
 
 The overlay uses Tesseract.js to OCR-read numbers directly from screen pixels. It never touches game memory or network traffic, so it is completely safe with Easy Anti-Cheat.
+
+The day timer auto-starts when the game displays "Day 1" / "Dia 1" (or Day 2, Day 3) text in the center of the screen. A 30-second cooldown prevents re-triggering.
 
 Storm phase timings per day:
 - Storm: 4:30

@@ -21,21 +21,22 @@ let currentLevel = 1;
 let ocrInterval = null;
 let isOCRRunning = false;
 let keepOnTopInterval = null;
+let lastDayDetectTime = 0;
+const DAY_DETECT_COOLDOWN_MS = 30000;
 
 // ─── Window Creation ────────────────────────────────────────────────
 
 function createOverlayWindow() {
   const cfg = settings.get();
   const display = screen.getPrimaryDisplay();
-  const overlayWidth = 320;
-  const defaultX = Math.round((display.size.width - overlayWidth) / 2);
-  const defaultY = 10;
-  const posX = defaultX;
-  const posY = defaultY;
+  const overlayWidth = 300;
+  const overlayHeight = 80;
+  const posX = display.size.width - overlayWidth - 10;
+  const posY = 100;
 
   overlayWin = new BrowserWindow({
     width: overlayWidth,
-    height: 240,
+    height: overlayHeight,
     x: posX,
     y: posY,
     frame: false,
@@ -247,11 +248,38 @@ function cropRegion(thumbnail, region) {
   return cropped.toPNG();
 }
 
+function getCenterRegion() {
+  const display = screen.getPrimaryDisplay();
+  const w = 500;
+  const h = 150;
+  return {
+    x: Math.round((display.size.width - w) / 2),
+    y: Math.round((display.size.height - h) / 2),
+    width: w,
+    height: h,
+  };
+}
+
+function tryDetectDay(text) {
+  const normalized = text.replace(/[^A-Z0-9 ]/g, '').trim();
+  const patterns = [
+    { re: /\bDI?A\s*(III|3)\b/i, day: 3 },
+    { re: /\bDAY\s*(III|3)\b/i, day: 3 },
+    { re: /\bDI?A\s*(II|2)\b/i, day: 2 },
+    { re: /\bDAY\s*(II|2)\b/i, day: 2 },
+    { re: /\bDI?A\s*(I|1)\b/i, day: 1 },
+    { re: /\bDAY\s*(I|1)\b/i, day: 1 },
+  ];
+  for (const p of patterns) {
+    if (p.re.test(normalized)) return p.day;
+  }
+  return null;
+}
+
 function startOCR() {
   const cfg = settings.get();
   const hasRunes = !!cfg.ocrRuneRegion;
   const hasLevel = !!cfg.ocrLevelRegion;
-  if (!hasRunes && !hasLevel) return;
 
   stopOCR();
 
@@ -288,6 +316,26 @@ function startOCR() {
           }
         }
       }
+
+      // Auto-detect day from center screen text
+      const now = Date.now();
+      if (now - lastDayDetectTime > DAY_DETECT_COOLDOWN_MS) {
+        const centerRegion = getCenterRegion();
+        const centerImage = cropRegion(thumbnail, centerRegion);
+        const textResult = await ocrWorker.recognizeText(centerImage);
+
+        if (textResult.confidence > 30) {
+          const detectedDay = tryDetectDay(textResult.raw);
+          if (detectedDay != null && detectedDay !== currentDay) {
+            lastDayDetectTime = now;
+            currentDay = detectedDay - 1;
+            startDayTimer();
+            if (overlayWin) {
+              overlayWin.webContents.send('toast', `Day ${detectedDay} detected`);
+            }
+          }
+        }
+      }
     } catch (err) {
       console.error('OCR error:', err.message);
     } finally {
@@ -310,11 +358,8 @@ function adjustOCRSpeed(deltaMs) {
 
   settings.save({ ocrIntervalMs: newInterval });
 
-  // Restart OCR with new interval
-  if (cfg.ocrRuneRegion || cfg.ocrLevelRegion) {
-    stopOCR();
-    startOCR();
-  }
+  stopOCR();
+  startOCR();
 
   if (overlayWin) {
     const seconds = (newInterval / 1000).toFixed(1);
@@ -329,13 +374,7 @@ function registerHotkeys() {
 
   globalShortcut.register(keys.toggleOverlay, () => {
     if (overlayWin) {
-      if (overlayWin.isVisible()) {
-        overlayWin.hide();
-      } else {
-        overlayWin.showInactive();
-        overlayWin.setAlwaysOnTop(true, 'screen-saver');
-        overlayWin.moveTop();
-      }
+      overlayWin.webContents.send('overlay:toggle');
     }
   });
 
@@ -379,12 +418,11 @@ function setupIPC() {
     } else if (type === 'level') {
       settings.save({ ocrLevelRegion: region });
 
-      // Both regions done -- close calibration and restart OCR
       if (calibrationWin) {
         calibrationWin.close();
       }
       stopOCR();
-      ocrWorker.init().then(() => startOCR());
+      startOCR();
     }
   });
 }
@@ -398,10 +436,7 @@ app.whenReady().then(async () => {
   registerHotkeys();
 
   await ocrWorker.init();
-  const cfg = settings.get();
-  if (cfg.ocrRuneRegion || cfg.ocrLevelRegion) {
-    startOCR();
-  }
+  startOCR();
 });
 
 app.on('will-quit', () => {

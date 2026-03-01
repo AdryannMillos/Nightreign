@@ -1,22 +1,13 @@
 const $ = (sel) => document.querySelector(sel);
 
-const els = {
-  dayLabel: $('#day-label'),
-  shrinkBadge: $('#shrink-badge'),
-  phaseName: $('#phase-name'),
-  phaseCountdown: $('#phase-countdown'),
-  phaseBar: $('#phase-bar'),
-  nextPhase: $('#next-phase'),
-  levelDisplay: $('#level-display'),
-  runeCount: $('#rune-count'),
-  runeBar: $('#rune-bar'),
-  runeNeeded: $('#rune-needed'),
-  overlay: $('#overlay'),
-};
+const lineTimer = $('#line-timer');
+const lineRunes = $('#line-runes');
+const toastEl = $('#toast');
 
 let currentRunesForNext = null;
 let currentRunes = null;
-let isVisible = true;
+let currentLevelNum = 1;
+let isMaxLevel = false;
 
 function formatTime(totalSeconds) {
   const m = Math.floor(totalSeconds / 60);
@@ -29,108 +20,48 @@ function formatRunes(n) {
   return n.toLocaleString('en-US');
 }
 
-// ─── Timer Updates ──────────────────────────────────────────────────
+// ─── Timer ──────────────────────────────────────────────────────────
 
 window.nightreign.onTimerUpdate((data) => {
-  els.dayLabel.textContent = `DAY ${data.day}`;
+  lineTimer.classList.remove('hidden', 'shrinking', 'boss');
 
-  // Phase name
-  els.phaseName.textContent = data.currentPhase;
-  els.phaseName.className = '';
   if (data.isBossFight) {
-    els.phaseName.classList.add('boss');
-  } else if (data.isShrinking) {
-    els.phaseName.classList.add('shrinking');
-  }
-
-  // Shrinking badge
-  if (data.isShrinking) {
-    els.shrinkBadge.classList.remove('hidden');
+    lineTimer.textContent = data.currentPhase;
+    lineTimer.classList.add('boss');
   } else {
-    els.shrinkBadge.classList.add('hidden');
-  }
-
-  // Countdown -- the big number
-  els.phaseCountdown.className = '';
-  if (data.isBossFight) {
-    els.phaseCountdown.textContent = 'FIGHT';
-    els.phaseCountdown.classList.add('boss');
-  } else {
-    els.phaseCountdown.textContent = formatTime(data.phaseTimeLeft);
-    if (data.isShrinking) els.phaseCountdown.classList.add('shrinking');
-  }
-
-  // Progress bar (fills as time passes within the phase)
-  els.phaseBar.className = '';
-  if (data.isBossFight) {
-    els.phaseBar.style.width = '100%';
-    els.phaseBar.classList.add('boss');
-  } else if (data.phaseDuration > 0) {
-    const phaseElapsed = data.phaseDuration - data.phaseTimeLeft;
-    const pct = Math.min(100, (phaseElapsed / data.phaseDuration) * 100);
-    els.phaseBar.style.width = `${pct}%`;
-    if (data.isShrinking) els.phaseBar.classList.add('shrinking');
-  } else {
-    els.phaseBar.style.width = '0%';
-  }
-
-  // Next phase hint
-  if (data.nextPhase) {
-    els.nextPhase.textContent = `Next: ${data.nextPhase}`;
-  } else {
-    els.nextPhase.textContent = '';
+    lineTimer.textContent = `${data.currentPhase}  ${formatTime(data.phaseTimeLeft)}`;
+    if (data.isShrinking) lineTimer.classList.add('shrinking');
   }
 });
 
 window.nightreign.onDayChange((day) => {
-  els.dayLabel.textContent = `DAY ${day}`;
-  els.phaseName.textContent = 'Storm';
-  els.phaseName.className = '';
-  els.phaseCountdown.textContent = '...';
-  els.phaseCountdown.className = '';
-  els.phaseBar.style.width = '0%';
-  els.phaseBar.className = '';
-  els.shrinkBadge.classList.add('hidden');
-  els.nextPhase.textContent = '';
-
+  lineTimer.classList.remove('hidden', 'shrinking', 'boss');
   if (day === 3) {
-    els.phaseName.textContent = 'Night Lord';
-    els.phaseName.classList.add('boss');
-    els.phaseCountdown.textContent = 'FINAL FIGHT';
-    els.phaseCountdown.classList.add('boss');
+    lineTimer.textContent = 'Night Lord';
+    lineTimer.classList.add('boss');
+  } else {
+    lineTimer.textContent = `Day ${day}`;
   }
 });
 
 window.nightreign.onTimerReset(() => {
-  els.dayLabel.textContent = 'PRESS F6 TO START';
-  els.phaseName.textContent = 'Waiting...';
-  els.phaseName.className = '';
-  els.phaseCountdown.textContent = '--:--';
-  els.phaseCountdown.className = '';
-  els.phaseBar.style.width = '0%';
-  els.phaseBar.className = '';
-  els.shrinkBadge.classList.add('hidden');
-  els.nextPhase.textContent = '';
+  lineTimer.classList.add('hidden');
+  lineTimer.textContent = '';
 });
 
-// ─── Level Updates ──────────────────────────────────────────────────
+// ─── Level & Runes ──────────────────────────────────────────────────
 
 window.nightreign.onLevelChange((data) => {
-  els.levelDisplay.textContent = `Lv. ${data.currentLevel}`;
+  currentLevelNum = data.currentLevel;
+  isMaxLevel = data.isMaxLevel;
 
   if (data.isMaxLevel) {
-    els.runeNeeded.innerHTML = '<span class="max-level">MAX LEVEL</span>';
-    els.runeCount.textContent = '';
-    els.runeBar.style.width = '100%';
     currentRunesForNext = null;
   } else {
     currentRunesForNext = data.runesForNext;
-    els.runeNeeded.textContent = `Next level: ${formatRunes(data.runesForNext)} runes`;
-    updateRuneDisplay();
   }
+  updateRuneDisplay();
 });
-
-// ─── OCR Rune Updates ───────────────────────────────────────────────
 
 window.nightreign.onRuneOCR((data) => {
   currentRunes = data.runes;
@@ -138,36 +69,34 @@ window.nightreign.onRuneOCR((data) => {
 });
 
 function updateRuneDisplay() {
+  if (isMaxLevel) {
+    lineRunes.textContent = `Lv. ${currentLevelNum}  ·  MAX`;
+    return;
+  }
+
+  let runeText;
   if (currentRunes != null && currentRunesForNext != null) {
     const missing = Math.max(0, currentRunesForNext - currentRunes);
-    if (missing === 0) {
-      els.runeCount.textContent = 'Ready to level!';
-    } else {
-      els.runeCount.textContent = `${formatRunes(missing)} to go`;
-    }
-
-    const pct = Math.min(100, (currentRunes / currentRunesForNext) * 100);
-    els.runeBar.style.width = `${pct}%`;
-  } else if (currentRunes != null) {
-    els.runeCount.textContent = `${formatRunes(currentRunes)} runes`;
-    els.runeBar.style.width = '0%';
+    runeText = missing === 0 ? 'Ready!' : `${formatRunes(missing)} to go`;
   } else {
-    els.runeCount.textContent = '? runes';
-    els.runeBar.style.width = '0%';
+    runeText = currentRunesForNext != null
+      ? `need ${formatRunes(currentRunesForNext)}`
+      : '';
   }
+
+  lineRunes.textContent = `Lv. ${currentLevelNum}  ·  ${runeText}`;
 }
 
-// ─── Visibility Toggle ─────────────────────────────────────────────
+// ─── F5 Visibility Toggle (opacity) ────────────────────────────────
 
 window.nightreign.onVisibilityToggle(() => {
-  isVisible = !isVisible;
-  els.overlay.style.display = isVisible ? 'block' : 'none';
+  const hidden = document.body.style.opacity === '0';
+  document.body.style.opacity = hidden ? '1' : '0';
 });
 
-// ─── Toast Notifications ────────────────────────────────────────────
+// ─── Toast ──────────────────────────────────────────────────────────
 
 let toastTimeout = null;
-const toastEl = $('#toast');
 
 window.nightreign.onToast((msg) => {
   toastEl.textContent = msg;
@@ -181,9 +110,9 @@ window.nightreign.onToast((msg) => {
 // ─── Calibration ────────────────────────────────────────────────────
 
 window.nightreign.onCalibrationStart(() => {
-  els.overlay.classList.add('calibrating');
+  document.body.style.opacity = '0.3';
 });
 
 window.nightreign.onCalibrationEnd(() => {
-  els.overlay.classList.remove('calibrating');
+  document.body.style.opacity = '1';
 });

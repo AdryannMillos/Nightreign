@@ -8,44 +8,10 @@
 </head>
 <body>
   <div id="overlay">
-    <!-- Timer Section -->
-    <div id="timer-section">
-      <div id="day-header">
-        <span id="day-label">PRESS F6 TO START</span>
-        <span id="shrink-badge" class="hidden">SHRINKING</span>
-      </div>
-      <div id="phase-name">Waiting...</div>
-      <div id="phase-countdown">--:--</div>
-      <div id="phase-bar-container">
-        <div id="phase-bar"></div>
-      </div>
-      <div id="next-phase"></div>
-    </div>
-
-    <!-- Divider -->
-    <div class="divider"></div>
-
-    <!-- Level & Runes Section -->
-    <div id="rune-section">
-      <div id="level-row">
-        <span id="level-display">Lv. 1</span>
-        <span id="rune-count">? runes</span>
-      </div>
-      <div id="rune-bar-container">
-        <div id="rune-bar"></div>
-      </div>
-      <div id="rune-needed">Next level: 3,698 runes</div>
-    </div>
-
-    <!-- Toast notification -->
+    <div id="line-timer" class="hidden"></div>
+    <div id="line-runes"></div>
     <div id="toast" class="hidden"></div>
-
-    <!-- Hotkey hints -->
-    <div id="hints">
-      F5 hide · F6 day · F7/F8 lvl · F9 calibrate · F10/F11 OCR speed
-    </div>
   </div>
-
   <script src="overlay.js"></script>
 </body>
 </html>
