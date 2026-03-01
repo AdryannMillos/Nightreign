@@ -5,8 +5,9 @@ const { app } = require('electron');
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'nightreign-settings.json');
 
 const DEFAULTS = {
-  ocrRegion: null, // { x, y, width, height } — set during calibration
-  overlayPosition: { x: 20, y: 20 },
+  ocrRuneRegion: null,  // { x, y, width, height } — rune counter (top-right)
+  ocrLevelRegion: null, // { x, y, width, height } — level number (top-left)
+  overlayPosition: { x: -1, y: 10 },
   ocrIntervalMs: 3000,
   hotkeys: {
     toggleOverlay: 'F5',

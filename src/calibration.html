@@ -38,6 +38,12 @@
       text-transform: uppercase;
     }
 
+    #step-label {
+      font-size: 10px;
+      color: #887858;
+      margin-bottom: 4px;
+    }
+
     #instructions p {
       font-size: 12px;
       color: #a89878;
@@ -52,6 +58,11 @@
       padding: 1px 6px;
       font-size: 11px;
       color: #c9a84c;
+    }
+
+    .highlight {
+      color: #c9a84c;
+      font-weight: 700;
     }
 
     #selection {
@@ -75,14 +86,35 @@
       pointer-events: none;
       z-index: 6;
     }
+
+    .saved-region {
+      position: fixed;
+      border: 2px dashed rgba(92, 184, 92, 0.7);
+      background: rgba(92, 184, 92, 0.08);
+      pointer-events: none;
+      z-index: 4;
+    }
+
+    .saved-label {
+      position: fixed;
+      background: rgba(15, 12, 8, 0.85);
+      border: 1px solid rgba(92, 184, 92, 0.4);
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-size: 9px;
+      color: #5cb85c;
+      pointer-events: none;
+      z-index: 4;
+    }
   </style>
 </head>
 <body>
   <div id="instructions">
-    <h2>OCR Region Calibration</h2>
-    <p>
-      Draw a rectangle over the <strong>rune counter</strong> area (top-right of the game screen).<br>
-      Press <span class="key">ESC</span> or <span class="key">F9</span> to cancel.
+    <div id="step-label">STEP 1 of 2</div>
+    <h2 id="title">Rune Counter Region</h2>
+    <p id="desc">
+      Draw a rectangle over the <span class="highlight">rune counter number</span> (top-right of the screen).<br>
+      Press <span class="key">ESC</span> to cancel.
     </p>
   </div>
 
@@ -92,7 +124,11 @@
   <script>
     const selEl = document.getElementById('selection');
     const infoEl = document.getElementById('selection-info');
+    const stepLabel = document.getElementById('step-label');
+    const titleEl = document.getElementById('title');
+    const descEl = document.getElementById('desc');
 
+    let step = 'runes'; // 'runes' -> 'level'
     let startX = 0, startY = 0;
     let isDragging = false;
 
@@ -124,7 +160,7 @@
       infoEl.style.display = 'block';
       infoEl.style.left = `${cx + w + 8}px`;
       infoEl.style.top = `${cy}px`;
-      infoEl.textContent = `${w} x ${h}`;
+      infoEl.textContent = `${Math.round(w)} x ${Math.round(h)}`;
     });
 
     document.addEventListener('mouseup', (e) => {
@@ -139,14 +175,46 @@
       const width = Math.abs(endX - startX);
       const height = Math.abs(endY - startY);
 
-      if (width > 10 && height > 10) {
-        window.nightreign.sendCalibrationRegion({
-          x: Math.round(x),
-          y: Math.round(y),
-          width: Math.round(width),
-          height: Math.round(height),
-        });
+      if (width < 10 || height < 10) return;
+
+      const region = {
+        x: Math.round(x),
+        y: Math.round(y),
+        width: Math.round(width),
+        height: Math.round(height),
+      };
+
+      window.nightreign.sendCalibrationRegion(step, region);
+
+      if (step === 'runes') {
+        // Show saved region marker
+        const marker = document.createElement('div');
+        marker.className = 'saved-region';
+        marker.style.left = `${selEl.style.left}`;
+        marker.style.top = `${selEl.style.top}`;
+        marker.style.width = `${selEl.style.width}`;
+        marker.style.height = `${selEl.style.height}`;
+        document.body.appendChild(marker);
+
+        const label = document.createElement('div');
+        label.className = 'saved-label';
+        label.textContent = 'RUNES ✓';
+        label.style.left = selEl.style.left;
+        label.style.top = `${parseInt(selEl.style.top) - 18}px`;
+        document.body.appendChild(label);
+
+        // Move to step 2
+        step = 'level';
+        stepLabel.textContent = 'STEP 2 of 2';
+        titleEl.textContent = 'Level Number Region';
+        descEl.innerHTML =
+          'Now draw a rectangle over the <span class="highlight">level number</span> (top-left, the number near the health bar).<br>' +
+          'Press <span class="key">ESC</span> to cancel.';
+
+        selEl.style.display = 'none';
+        infoEl.style.display = 'none';
       }
+      // After level step, main process will close this window
     });
 
     document.addEventListener('keydown', (e) => {

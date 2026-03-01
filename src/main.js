@@ -20,24 +20,31 @@ let currentDay = 0; // 0 = not started, 1-3
 let currentLevel = 1;
 let ocrInterval = null;
 let isOCRRunning = false;
+let keepOnTopInterval = null;
 
 // ─── Window Creation ────────────────────────────────────────────────
 
 function createOverlayWindow() {
   const cfg = settings.get();
+  const display = screen.getPrimaryDisplay();
+  const overlayWidth = 320;
+  const defaultX = Math.round((display.size.width - overlayWidth) / 2);
+  const defaultY = 10;
+  const posX = defaultX;
+  const posY = defaultY;
 
   overlayWin = new BrowserWindow({
-    width: 320,
-    height: 220,
-    x: cfg.overlayPosition.x,
-    y: cfg.overlayPosition.y,
+    width: overlayWidth,
+    height: 240,
+    x: posX,
+    y: posY,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: false,
-    focusable: false,
     hasShadow: false,
+    type: 'toolbar',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -48,6 +55,15 @@ function createOverlayWindow() {
   overlayWin.setIgnoreMouseEvents(true, { forward: true });
   overlayWin.setAlwaysOnTop(true, 'screen-saver');
   overlayWin.setVisibleOnAllWorkspaces(true);
+  overlayWin.showInactive();
+
+  // Re-assert on-top every second so the game can't bury the overlay
+  keepOnTopInterval = setInterval(() => {
+    if (!overlayWin || overlayWin.isDestroyed()) return;
+    overlayWin.setAlwaysOnTop(false);
+    overlayWin.setAlwaysOnTop(true, 'screen-saver');
+    overlayWin.moveTop();
+  }, 1000);
 
   overlayWin.loadFile(path.join(__dirname, 'overlay.html'));
 
@@ -56,7 +72,13 @@ function createOverlayWindow() {
     sendLevelUpdate();
   });
 
-  overlayWin.on('closed', () => { overlayWin = null; });
+  overlayWin.on('closed', () => {
+    overlayWin = null;
+    if (keepOnTopInterval) {
+      clearInterval(keepOnTopInterval);
+      keepOnTopInterval = null;
+    }
+  });
 }
 
 function createCalibrationWindow() {
@@ -107,9 +129,9 @@ function startDayTimer() {
 
     const elapsed = (Date.now() - timerStartTime) / 1000;
     const phases = gameData.TIDE_PHASES;
-    let currentPhaseIndex = -1;
-    let nextPhaseTime = phases[0].triggerAt;
 
+    // Find current phase
+    let currentPhaseIndex = -1;
     for (let i = phases.length - 1; i >= 0; i--) {
       if (elapsed >= phases[i].triggerAt) {
         currentPhaseIndex = i;
@@ -117,36 +139,58 @@ function startDayTimer() {
       }
     }
 
-    let timeToNext = 0;
-    let nextPhaseName = '';
+    const isBossFight = elapsed >= gameData.DAY_DURATION;
 
-    if (currentPhaseIndex < phases.length - 1) {
-      const nextIdx = currentPhaseIndex + 1;
-      nextPhaseTime = phases[nextIdx].triggerAt;
-      timeToNext = Math.max(0, nextPhaseTime - elapsed);
-      nextPhaseName = phases[nextIdx].label;
-    } else {
-      timeToNext = Math.max(0, gameData.DAY_DURATION - elapsed);
-      nextPhaseName = 'Day ends';
+    if (isBossFight) {
+      const bossLabel = gameData.BOSS_LABELS[currentDay] || 'Boss Fight';
+      overlayWin.webContents.send('timer:update', {
+        day: currentDay,
+        currentPhase: bossLabel,
+        phaseTimeLeft: 0,
+        phaseDuration: 0,
+        isShrinking: false,
+        nextPhase: currentDay < 3 ? 'Press F6 for next day' : '',
+        phaseIndex: phases.length,
+        isBossFight: true,
+      });
+      stopDayTimer();
+      return;
     }
 
-    const currentPhaseName = currentPhaseIndex >= 0
-      ? phases[currentPhaseIndex].label
-      : 'Exploration — Tide inactive';
+    if (currentPhaseIndex >= 0) {
+      const phase = phases[currentPhaseIndex];
+      const phaseEnd = phase.triggerAt + phase.duration;
+      const timeLeft = Math.max(0, phaseEnd - elapsed);
 
-    overlayWin.webContents.send('timer:update', {
-      elapsed: Math.floor(elapsed),
-      day: currentDay,
-      currentPhase: currentPhaseName,
-      nextPhase: nextPhaseName,
-      timeToNextPhase: Math.ceil(timeToNext),
-      phaseIndex: currentPhaseIndex,
-      totalPhases: phases.length,
-      dayDuration: gameData.DAY_DURATION,
-    });
+      let nextLabel = '';
+      if (currentPhaseIndex < phases.length - 1) {
+        nextLabel = phases[currentPhaseIndex + 1].label;
+      } else {
+        nextLabel = gameData.BOSS_LABELS[currentDay] || 'Boss Fight';
+      }
 
-    if (elapsed >= gameData.DAY_DURATION) {
-      stopDayTimer();
+      overlayWin.webContents.send('timer:update', {
+        day: currentDay,
+        currentPhase: phase.label,
+        phaseTimeLeft: Math.ceil(timeLeft),
+        phaseDuration: phase.duration,
+        isShrinking: phase.shrinking,
+        nextPhase: nextLabel,
+        phaseIndex: currentPhaseIndex,
+        isBossFight: false,
+      });
+    } else {
+      const timeLeft = Math.max(0, phases[0].triggerAt - elapsed);
+      overlayWin.webContents.send('timer:update', {
+        day: currentDay,
+        currentPhase: 'Storm',
+        phaseTimeLeft: Math.ceil(timeLeft),
+        phaseDuration: phases[0].triggerAt,
+        isShrinking: false,
+        nextPhase: phases[0].label,
+        phaseIndex: -1,
+        isBossFight: false,
+      });
     }
   }, 250);
 }
@@ -183,23 +227,29 @@ function sendLevelUpdate() {
 
 // ─── OCR Screen Capture ─────────────────────────────────────────────
 
-async function captureScreenRegion(region) {
+let screenThumbnail = null;
+
+async function captureScreen() {
   const display = screen.getPrimaryDisplay();
   const sources = await desktopCapturer.getSources({
     types: ['screen'],
     thumbnailSize: display.size,
   });
-
   if (!sources.length) return null;
+  screenThumbnail = sources[0].thumbnail;
+  return screenThumbnail;
+}
 
-  const thumbnail = sources[0].thumbnail;
+function cropRegion(thumbnail, region) {
   const cropped = thumbnail.crop(region);
   return cropped.toPNG();
 }
 
 function startOCR() {
   const cfg = settings.get();
-  if (!cfg.ocrRegion) return;
+  const hasRunes = !!cfg.ocrRuneRegion;
+  const hasLevel = !!cfg.ocrLevelRegion;
+  if (!hasRunes && !hasLevel) return;
 
   stopOCR();
 
@@ -208,17 +258,33 @@ function startOCR() {
     isOCRRunning = true;
 
     try {
-      const imageBuffer = await captureScreenRegion(cfg.ocrRegion);
-      if (!imageBuffer) return;
+      const thumbnail = await captureScreen();
+      if (!thumbnail) return;
 
-      const result = await ocrWorker.recognizeRunes(imageBuffer);
+      // OCR rune count
+      if (hasRunes) {
+        const runeImage = cropRegion(thumbnail, cfg.ocrRuneRegion);
+        const runeResult = await ocrWorker.recognizeRunes(runeImage);
+        if (overlayWin && runeResult.confidence > 40) {
+          overlayWin.webContents.send('rune:ocr', {
+            runes: runeResult.value,
+            raw: runeResult.raw,
+            confidence: runeResult.confidence,
+          });
+        }
+      }
 
-      if (overlayWin && result.confidence > 40) {
-        overlayWin.webContents.send('rune:ocr', {
-          runes: result.value,
-          raw: result.raw,
-          confidence: result.confidence,
-        });
+      // OCR level number
+      if (hasLevel) {
+        const levelImage = cropRegion(thumbnail, cfg.ocrLevelRegion);
+        const levelResult = await ocrWorker.recognizeRunes(levelImage);
+        if (levelResult.value != null && levelResult.confidence > 40) {
+          const detectedLevel = levelResult.value;
+          if (detectedLevel >= gameData.MIN_LEVEL && detectedLevel <= gameData.MAX_LEVEL && detectedLevel !== currentLevel) {
+            currentLevel = detectedLevel;
+            sendLevelUpdate();
+          }
+        }
       }
     } catch (err) {
       console.error('OCR error:', err.message);
@@ -245,7 +311,9 @@ function registerHotkeys() {
       if (overlayWin.isVisible()) {
         overlayWin.hide();
       } else {
-        overlayWin.show();
+        overlayWin.showInactive();
+        overlayWin.setAlwaysOnTop(true, 'screen-saver');
+        overlayWin.moveTop();
       }
     }
   });
@@ -275,15 +343,19 @@ function registerHotkeys() {
 // ─── IPC Handlers ───────────────────────────────────────────────────
 
 function setupIPC() {
-  ipcMain.on('calibration:region', (_e, region) => {
-    settings.save({ ocrRegion: region });
+  ipcMain.on('calibration:region', (_e, type, region) => {
+    if (type === 'runes') {
+      settings.save({ ocrRuneRegion: region });
+    } else if (type === 'level') {
+      settings.save({ ocrLevelRegion: region });
 
-    if (calibrationWin) {
-      calibrationWin.close();
+      // Both regions done -- close calibration and restart OCR
+      if (calibrationWin) {
+        calibrationWin.close();
+      }
+      stopOCR();
+      ocrWorker.init().then(() => startOCR());
     }
-
-    stopOCR();
-    ocrWorker.init().then(() => startOCR());
   });
 }
 
@@ -296,7 +368,8 @@ app.whenReady().then(async () => {
   registerHotkeys();
 
   await ocrWorker.init();
-  if (settings.get().ocrRegion) {
+  const cfg = settings.get();
+  if (cfg.ocrRuneRegion || cfg.ocrLevelRegion) {
     startOCR();
   }
 });
@@ -306,6 +379,10 @@ app.on('will-quit', () => {
   stopDayTimer();
   stopOCR();
   ocrWorker.terminate();
+  if (keepOnTopInterval) {
+    clearInterval(keepOnTopInterval);
+    keepOnTopInterval = null;
+  }
 });
 
 app.on('window-all-closed', () => {

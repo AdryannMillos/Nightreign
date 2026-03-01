@@ -13,10 +13,10 @@ contextBridge.exposeInMainWorld('nightreign', {
   // Overlay
   onVisibilityToggle: (cb) => ipcRenderer.on('overlay:toggle', (_e) => cb()),
 
-  // Calibration
+  // Calibration (two-step: runes then level)
   onCalibrationStart: (cb) => ipcRenderer.on('calibration:start', (_e) => cb()),
   onCalibrationEnd: (cb) => ipcRenderer.on('calibration:end', (_e) => cb()),
-  sendCalibrationRegion: (region) => ipcRenderer.send('calibration:region', region),
+  sendCalibrationRegion: (type, region) => ipcRenderer.send('calibration:region', type, region),
 
   // Settings
   onSettingsLoad: (cb) => ipcRenderer.on('settings:load', (_e, data) => cb(data)),

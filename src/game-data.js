@@ -19,14 +19,30 @@ const RUNE_COSTS = [
 const MAX_LEVEL = 15;
 const MIN_LEVEL = 1;
 
-// Night's Tide phase timings in seconds from the start of each day
-const TIDE_PHASES = [
-  { name: 'Tide Shrinks',    triggerAt: 270, label: 'Phase 1 — Tide begins shrinking' },
-  { name: 'Final Shrink',    triggerAt: 660, label: 'Phase 2 — Final shrink toward arena' },
-  { name: 'Boss Fight',      triggerAt: 840, label: 'Phase 3 — Boss fight begins' },
+// Phases for Day 1 and Day 2 — durations in seconds
+// Each phase has a duration; triggerAt is cumulative start time
+const DAY_PHASES = [
+  { name: 'Storm',              duration: 270, shrinking: false, label: 'Storm'              },
+  { name: 'Storm Shrinking',    duration: 180, shrinking: true,  label: 'Storm Shrinking'    },
+  { name: 'Storm 2',            duration: 210, shrinking: false, label: 'Storm 2'            },
+  { name: 'Storm 2 Shrinking',  duration: 180, shrinking: true,  label: 'Storm 2 Shrinking'  },
 ];
 
-const DAY_DURATION = 900; // ~15 minutes total per day
+// Build cumulative trigger times
+let cumulative = 0;
+const TIDE_PHASES = DAY_PHASES.map((p) => {
+  const phase = { ...p, triggerAt: cumulative };
+  cumulative += p.duration;
+  return phase;
+});
+
+// Total time before boss fight starts
+const DAY_DURATION = cumulative; // 840s = 14:00
+
+const BOSS_LABELS = {
+  1: 'Night Boss',
+  2: 'Final Boss',
+};
 
 function getRuneCostForLevel(level) {
   if (level < MIN_LEVEL || level > MAX_LEVEL) return null;
@@ -44,6 +60,7 @@ module.exports = {
   MIN_LEVEL,
   TIDE_PHASES,
   DAY_DURATION,
+  BOSS_LABELS,
   getRuneCostForLevel,
   getRunesNeededForNextLevel,
 };

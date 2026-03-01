@@ -12,16 +12,14 @@
     <div id="timer-section">
       <div id="day-header">
         <span id="day-label">PRESS F6 TO START</span>
-        <span id="timer-display">--:--</span>
+        <span id="shrink-badge" class="hidden">SHRINKING</span>
       </div>
+      <div id="phase-name">Waiting...</div>
+      <div id="phase-countdown">--:--</div>
       <div id="phase-bar-container">
         <div id="phase-bar"></div>
       </div>
-      <div id="phase-label">Waiting...</div>
-      <div id="next-phase">
-        <span id="next-phase-label"></span>
-        <span id="next-phase-time"></span>
-      </div>
+      <div id="next-phase"></div>
     </div>
 
     <!-- Divider -->
@@ -41,7 +39,7 @@
 
     <!-- Hotkey hints -->
     <div id="hints">
-      F5 hide · F6 timer · F7/F8 lvl · F9 calibrate
+      F5 hide · F6 start day · F7/F8 lvl · F9 calibrate OCR
     </div>
   </div>
 

@@ -2,11 +2,11 @@ const $ = (sel) => document.querySelector(sel);
 
 const els = {
   dayLabel: $('#day-label'),
-  timerDisplay: $('#timer-display'),
+  shrinkBadge: $('#shrink-badge'),
+  phaseName: $('#phase-name'),
+  phaseCountdown: $('#phase-countdown'),
   phaseBar: $('#phase-bar'),
-  phaseLabel: $('#phase-label'),
-  nextPhaseLabel: $('#next-phase-label'),
-  nextPhaseTime: $('#next-phase-time'),
+  nextPhase: $('#next-phase'),
   levelDisplay: $('#level-display'),
   runeCount: $('#rune-count'),
   runeBar: $('#rune-bar'),
@@ -33,53 +33,84 @@ function formatRunes(n) {
 
 window.nightreign.onTimerUpdate((data) => {
   els.dayLabel.textContent = `DAY ${data.day}`;
-  els.timerDisplay.textContent = formatTime(data.elapsed);
 
-  els.phaseLabel.textContent = data.currentPhase;
-
-  if (data.nextPhase) {
-    els.nextPhaseLabel.textContent = data.nextPhase;
-    els.nextPhaseTime.textContent = `in ${formatTime(data.timeToNextPhase)}`;
-  } else {
-    els.nextPhaseLabel.textContent = '';
-    els.nextPhaseTime.textContent = '';
+  // Phase name
+  els.phaseName.textContent = data.currentPhase;
+  els.phaseName.className = '';
+  if (data.isBossFight) {
+    els.phaseName.classList.add('boss');
+  } else if (data.isShrinking) {
+    els.phaseName.classList.add('shrinking');
   }
 
-  const progress = Math.min(100, (data.elapsed / data.dayDuration) * 100);
-  els.phaseBar.style.width = `${progress}%`;
+  // Shrinking badge
+  if (data.isShrinking) {
+    els.shrinkBadge.classList.remove('hidden');
+  } else {
+    els.shrinkBadge.classList.add('hidden');
+  }
 
-  els.phaseBar.classList.remove('warning', 'danger');
-  if (data.phaseIndex >= 1) {
-    els.phaseBar.classList.add('danger');
-  } else if (data.phaseIndex >= 0) {
-    els.phaseBar.classList.add('warning');
+  // Countdown -- the big number
+  els.phaseCountdown.className = '';
+  if (data.isBossFight) {
+    els.phaseCountdown.textContent = 'FIGHT';
+    els.phaseCountdown.classList.add('boss');
+  } else {
+    els.phaseCountdown.textContent = formatTime(data.phaseTimeLeft);
+    if (data.isShrinking) els.phaseCountdown.classList.add('shrinking');
+  }
+
+  // Progress bar (fills as time passes within the phase)
+  els.phaseBar.className = '';
+  if (data.isBossFight) {
+    els.phaseBar.style.width = '100%';
+    els.phaseBar.classList.add('boss');
+  } else if (data.phaseDuration > 0) {
+    const phaseElapsed = data.phaseDuration - data.phaseTimeLeft;
+    const pct = Math.min(100, (phaseElapsed / data.phaseDuration) * 100);
+    els.phaseBar.style.width = `${pct}%`;
+    if (data.isShrinking) els.phaseBar.classList.add('shrinking');
+  } else {
+    els.phaseBar.style.width = '0%';
+  }
+
+  // Next phase hint
+  if (data.nextPhase) {
+    els.nextPhase.textContent = `Next: ${data.nextPhase}`;
+  } else {
+    els.nextPhase.textContent = '';
   }
 });
 
 window.nightreign.onDayChange((day) => {
   els.dayLabel.textContent = `DAY ${day}`;
-  els.timerDisplay.textContent = '0:00';
+  els.phaseName.textContent = 'Storm';
+  els.phaseName.className = '';
+  els.phaseCountdown.textContent = '...';
+  els.phaseCountdown.className = '';
   els.phaseBar.style.width = '0%';
-  els.phaseBar.classList.remove('warning', 'danger');
-  els.phaseLabel.textContent = 'Exploration — Tide inactive';
-  els.nextPhaseLabel.textContent = '';
-  els.nextPhaseTime.textContent = '';
+  els.phaseBar.className = '';
+  els.shrinkBadge.classList.add('hidden');
+  els.nextPhase.textContent = '';
 
   if (day === 3) {
-    els.phaseLabel.textContent = 'Final Day — Night Lord awaits';
-    els.nextPhaseLabel.textContent = '';
-    els.nextPhaseTime.textContent = '';
+    els.phaseName.textContent = 'Night Lord';
+    els.phaseName.classList.add('boss');
+    els.phaseCountdown.textContent = 'FINAL FIGHT';
+    els.phaseCountdown.classList.add('boss');
   }
 });
 
 window.nightreign.onTimerReset(() => {
   els.dayLabel.textContent = 'PRESS F6 TO START';
-  els.timerDisplay.textContent = '--:--';
+  els.phaseName.textContent = 'Waiting...';
+  els.phaseName.className = '';
+  els.phaseCountdown.textContent = '--:--';
+  els.phaseCountdown.className = '';
   els.phaseBar.style.width = '0%';
-  els.phaseBar.classList.remove('warning', 'danger');
-  els.phaseLabel.textContent = 'Waiting...';
-  els.nextPhaseLabel.textContent = '';
-  els.nextPhaseTime.textContent = '';
+  els.phaseBar.className = '';
+  els.shrinkBadge.classList.add('hidden');
+  els.nextPhase.textContent = '';
 });
 
 // ─── Level Updates ──────────────────────────────────────────────────
@@ -89,12 +120,13 @@ window.nightreign.onLevelChange((data) => {
 
   if (data.isMaxLevel) {
     els.runeNeeded.innerHTML = '<span class="max-level">MAX LEVEL</span>';
+    els.runeCount.textContent = '';
     els.runeBar.style.width = '100%';
     currentRunesForNext = null;
   } else {
     currentRunesForNext = data.runesForNext;
     els.runeNeeded.textContent = `Next level: ${formatRunes(data.runesForNext)} runes`;
-    updateRuneBar();
+    updateRuneDisplay();
   }
 });
 
@@ -102,21 +134,25 @@ window.nightreign.onLevelChange((data) => {
 
 window.nightreign.onRuneOCR((data) => {
   currentRunes = data.runes;
-
-  if (data.runes != null) {
-    els.runeCount.textContent = `${formatRunes(data.runes)} runes`;
-  } else {
-    els.runeCount.textContent = '? runes';
-  }
-
-  updateRuneBar();
+  updateRuneDisplay();
 });
 
-function updateRuneBar() {
-  if (currentRunes != null && currentRunesForNext != null && currentRunesForNext > 0) {
+function updateRuneDisplay() {
+  if (currentRunes != null && currentRunesForNext != null) {
+    const missing = Math.max(0, currentRunesForNext - currentRunes);
+    if (missing === 0) {
+      els.runeCount.textContent = 'Ready to level!';
+    } else {
+      els.runeCount.textContent = `${formatRunes(missing)} to go`;
+    }
+
     const pct = Math.min(100, (currentRunes / currentRunesForNext) * 100);
     els.runeBar.style.width = `${pct}%`;
+  } else if (currentRunes != null) {
+    els.runeCount.textContent = `${formatRunes(currentRunes)} runes`;
+    els.runeBar.style.width = '0%';
   } else {
+    els.runeCount.textContent = '? runes';
     els.runeBar.style.width = '0%';
   }
 }

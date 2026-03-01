@@ -27,14 +27,14 @@ body {
 /* ── Timer Section ─────────────────────────── */
 
 #timer-section {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 #day-header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 6px;
+  align-items: center;
+  margin-bottom: 4px;
 }
 
 #day-label {
@@ -45,12 +45,64 @@ body {
   color: #c9a84c;
 }
 
-#timer-display {
-  font-size: 22px;
+#shrink-badge {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #c9302c;
+  background: rgba(201, 48, 44, 0.15);
+  border: 1px solid rgba(201, 48, 44, 0.4);
+  border-radius: 3px;
+  padding: 1px 6px;
+  animation: pulse-badge 1.2s ease-in-out infinite;
+}
+
+#shrink-badge.hidden {
+  display: none;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+#phase-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #a89878;
+  text-align: center;
+  margin-bottom: 2px;
+}
+
+#phase-name.shrinking {
+  color: #d9831f;
+}
+
+#phase-name.boss {
+  color: #c9a84c;
+  font-size: 13px;
+}
+
+#phase-countdown {
+  font-size: 28px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: #f0e6d0;
-  text-shadow: 0 0 8px rgba(201, 168, 76, 0.4);
+  text-align: center;
+  text-shadow: 0 0 10px rgba(201, 168, 76, 0.4);
+  margin-bottom: 6px;
+  line-height: 1;
+}
+
+#phase-countdown.shrinking {
+  color: #c9302c;
+  text-shadow: 0 0 10px rgba(201, 48, 44, 0.4);
+}
+
+#phase-countdown.boss {
+  color: #c9a84c;
+  font-size: 16px;
+  text-shadow: 0 0 10px rgba(201, 168, 76, 0.3);
 }
 
 #phase-bar-container {
@@ -59,7 +111,7 @@ body {
   background: rgba(255, 255, 255, 0.08);
   border-radius: 2px;
   overflow: hidden;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
 }
 
 #phase-bar {
@@ -70,32 +122,18 @@ body {
   transition: width 0.3s ease, background 0.3s ease;
 }
 
-#phase-bar.warning {
-  background: linear-gradient(90deg, #c9a84c, #d9831f);
-}
-
-#phase-bar.danger {
+#phase-bar.shrinking {
   background: linear-gradient(90deg, #d9831f, #c9302c);
 }
 
-#phase-label {
-  font-size: 10px;
-  color: #a89878;
-  letter-spacing: 0.5px;
-  margin-bottom: 2px;
+#phase-bar.boss {
+  background: linear-gradient(90deg, #8b2fc9, #c9302c);
 }
 
 #next-phase {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
+  font-size: 9px;
   color: #887858;
-}
-
-#next-phase-time {
-  color: #c9a84c;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 /* ── Divider ───────────────────────────────── */
