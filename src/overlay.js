@@ -14,6 +14,7 @@ let isMaxLevel = false;
 let bosses = [];
 let currentBossIndex = 0;
 let bossVisible = true;
+let dayStarted = false;
 
 function formatTime(totalSeconds) {
   const m = Math.floor(totalSeconds / 60);
@@ -41,7 +42,11 @@ window.nightreign.onTimerUpdate((data) => {
 });
 
 window.nightreign.onDayChange((day) => {
+  dayStarted = true;
   lineTimer.classList.remove('hidden', 'shrinking', 'boss');
+  lineRunes.classList.remove('hidden');
+  if (bossVisible) bossPanel.classList.remove('hidden');
+  else bossPanel.classList.add('hidden');
   if (day === 3) {
     lineTimer.textContent = 'Night Lord';
     lineTimer.classList.add('boss');
