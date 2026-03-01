@@ -110,7 +110,7 @@
 </head>
 <body>
   <div id="instructions">
-    <div id="step-label">STEP 1 of 2</div>
+    <div id="step-label">STEP 1 of 3</div>
     <h2 id="title">Rune Counter Region</h2>
     <p id="desc">
       Draw a rectangle over the <span class="highlight">rune counter number</span> (top-right of the screen).<br>
@@ -128,9 +128,57 @@
     const titleEl = document.getElementById('title');
     const descEl = document.getElementById('desc');
 
-    let step = 'runes'; // 'runes' -> 'level'
+    const steps = ['runes', 'level', 'day'];
+    let stepIndex = 0;
     let startX = 0, startY = 0;
     let isDragging = false;
+
+    const stepConfig = {
+      runes: {
+        label: 'STEP 1 of 3',
+        title: 'Rune Counter Region',
+        desc: 'Draw a rectangle over the <span class="highlight">rune counter number</span> (top-right of the screen).<br>Press <span class="key">ESC</span> to cancel.',
+        savedLabel: 'RUNES',
+      },
+      level: {
+        label: 'STEP 2 of 3',
+        title: 'Level Number Region',
+        desc: 'Now draw a rectangle over the <span class="highlight">level number</span> (top-left, the number near the health bar).<br>Press <span class="key">ESC</span> to cancel.',
+        savedLabel: 'LEVEL',
+      },
+      day: {
+        label: 'STEP 3 of 3',
+        title: 'Day Text Region',
+        desc: 'Now draw a rectangle over where <span class="highlight">DIA 1 / DAY 1</span> appears (center of the screen when a day starts).<br>Press <span class="key">ESC</span> to cancel.',
+        savedLabel: 'DAY',
+      },
+    };
+
+    function showStep(name) {
+      const cfg = stepConfig[name];
+      stepLabel.textContent = cfg.label;
+      titleEl.textContent = cfg.title;
+      descEl.innerHTML = cfg.desc;
+      selEl.style.display = 'none';
+      infoEl.style.display = 'none';
+    }
+
+    function markSaved(label) {
+      const marker = document.createElement('div');
+      marker.className = 'saved-region';
+      marker.style.left = selEl.style.left;
+      marker.style.top = selEl.style.top;
+      marker.style.width = selEl.style.width;
+      marker.style.height = selEl.style.height;
+      document.body.appendChild(marker);
+
+      const tag = document.createElement('div');
+      tag.className = 'saved-label';
+      tag.textContent = label + ' \u2713';
+      tag.style.left = selEl.style.left;
+      tag.style.top = `${parseInt(selEl.style.top) - 18}px`;
+      document.body.appendChild(tag);
+    }
 
     document.addEventListener('mousedown', (e) => {
       startX = e.screenX;
@@ -184,37 +232,15 @@
         height: Math.round(height),
       };
 
-      window.nightreign.sendCalibrationRegion(step, region);
+      const currentStep = steps[stepIndex];
+      window.nightreign.sendCalibrationRegion(currentStep, region);
+      markSaved(stepConfig[currentStep].savedLabel);
 
-      if (step === 'runes') {
-        // Show saved region marker
-        const marker = document.createElement('div');
-        marker.className = 'saved-region';
-        marker.style.left = `${selEl.style.left}`;
-        marker.style.top = `${selEl.style.top}`;
-        marker.style.width = `${selEl.style.width}`;
-        marker.style.height = `${selEl.style.height}`;
-        document.body.appendChild(marker);
-
-        const label = document.createElement('div');
-        label.className = 'saved-label';
-        label.textContent = 'RUNES ✓';
-        label.style.left = selEl.style.left;
-        label.style.top = `${parseInt(selEl.style.top) - 18}px`;
-        document.body.appendChild(label);
-
-        // Move to step 2
-        step = 'level';
-        stepLabel.textContent = 'STEP 2 of 2';
-        titleEl.textContent = 'Level Number Region';
-        descEl.innerHTML =
-          'Now draw a rectangle over the <span class="highlight">level number</span> (top-left, the number near the health bar).<br>' +
-          'Press <span class="key">ESC</span> to cancel.';
-
-        selEl.style.display = 'none';
-        infoEl.style.display = 'none';
+      stepIndex++;
+      if (stepIndex < steps.length) {
+        showStep(steps[stepIndex]);
       }
-      // After level step, main process will close this window
+      // After final step, main process closes the window
     });
 
     document.addEventListener('keydown', (e) => {

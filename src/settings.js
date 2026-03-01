@@ -7,6 +7,7 @@ const SETTINGS_FILE = path.join(app.getPath('userData'), 'nightreign-settings.js
 const DEFAULTS = {
   ocrRuneRegion: null,  // { x, y, width, height } — rune counter (top-right)
   ocrLevelRegion: null, // { x, y, width, height } — level number (top-left)
+  ocrDayRegion: null,   // { x, y, width, height } — day text (center screen)
   overlayPosition: { x: -1, y: 10 },
   ocrIntervalMs: 3000,
   hotkeys: {

@@ -5,6 +5,7 @@ const {
   desktopCapturer,
   screen,
   ipcMain,
+  nativeImage,
 } = require('electron');
 const path = require('path');
 const settings = require('./settings');
@@ -152,7 +153,7 @@ function startDayTimer() {
         phaseTimeLeft: 0,
         phaseDuration: 0,
         isShrinking: false,
-        nextPhase: currentDay < 3 ? 'Press F6 for next day' : '',
+        nextPhase: currentDay < 3 ? 'Waiting for next day...' : '',
         phaseIndex: phases.length,
         isBossFight: true,
       });
@@ -248,39 +249,91 @@ function cropRegion(thumbnail, region) {
   return cropped.toPNG();
 }
 
+function cropAndPreprocess(thumbnail, region) {
+  const cropped = thumbnail.crop(region);
+  const size = cropped.getSize();
+  const bitmap = cropped.toBitmap(); // BGRA on Windows
+  const totalPixels = bitmap.length / 4;
+  let whitePixels = 0;
+
+  for (let i = 0; i < bitmap.length; i += 4) {
+    const b = bitmap[i];
+    const g = bitmap[i + 1];
+    const r = bitmap[i + 2];
+
+    // The game text is near-white (R≈G≈B, all high).
+    // Sky/background is colored (blue channel much higher than red).
+    // Check: all channels > 180 AND channels are close to each other (neutral)
+    const min = Math.min(r, g, b);
+    const max = Math.max(r, g, b);
+    const isNearWhite = min > 170 && max > 200 && (max - min) < 60;
+
+    if (isNearWhite) {
+      bitmap[i] = 0; bitmap[i + 1] = 0; bitmap[i + 2] = 0;
+      whitePixels++;
+    } else {
+      bitmap[i] = 255; bitmap[i + 1] = 255; bitmap[i + 2] = 255;
+    }
+    bitmap[i + 3] = 255;
+  }
+
+  const whiteRatio = whitePixels / totalPixels;
+  const processed = nativeImage.createFromBitmap(bitmap, size);
+
+  // Save debug image for inspection
+  const fs = require('fs');
+  const debugPath = path.join(app.getPath('userData'), 'day-ocr-debug.png');
+  fs.writeFileSync(debugPath, processed.toPNG());
+
+  return { png: processed.toPNG(), whiteRatio };
+}
+
 function getCenterRegion() {
   const display = screen.getPrimaryDisplay();
-  const w = 500;
-  const h = 150;
+  const sw = display.size.width;
+  const sh = display.size.height;
+  const w = Math.round(sw * 0.30);
+  const h = Math.round(sh * 0.12);
   return {
-    x: Math.round((display.size.width - w) / 2),
-    y: Math.round((display.size.height - h) / 2),
+    x: Math.round((sw - w) / 2),
+    y: Math.round(sh * 0.50),
     width: w,
     height: h,
   };
 }
 
 function tryDetectDay(text) {
-  const normalized = text.replace(/[^A-Z0-9 ]/g, '').trim();
+  const t = text.toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+
+  // I/1/L are common OCR misreads of each other
+  const I = '[I1L]';
   const patterns = [
-    { re: /\bDI?A\s*(III|3)\b/i, day: 3 },
-    { re: /\bDAY\s*(III|3)\b/i, day: 3 },
-    { re: /\bDI?A\s*(II|2)\b/i, day: 2 },
-    { re: /\bDAY\s*(II|2)\b/i, day: 2 },
-    { re: /\bDI?A\s*(I|1)\b/i, day: 1 },
-    { re: /\bDAY\s*(I|1)\b/i, day: 1 },
+    { re: new RegExp(`D${I}?A\\s*${I}${I}${I}`, 'i'), day: 3 },
+    { re: new RegExp(`DAY\\s*${I}${I}${I}`, 'i'), day: 3 },
+    { re: new RegExp(`D.?Y\\s*${I}${I}${I}`, 'i'), day: 3 },
+    { re: /D[I1L]?A\s*3/i, day: 3 },
+    { re: /D.?Y\s*3/i, day: 3 },
+    { re: new RegExp(`D${I}?A\\s*${I}${I}(?!${I})`, 'i'), day: 2 },
+    { re: new RegExp(`DAY\\s*${I}${I}(?!${I})`, 'i'), day: 2 },
+    { re: new RegExp(`D.?Y\\s*${I}${I}(?!${I})`, 'i'), day: 2 },
+    { re: /D[I1L]?A\s*2/i, day: 2 },
+    { re: /D.?Y\s*2/i, day: 2 },
+    { re: new RegExp(`D${I}?A\\s*${I}(?!${I})`, 'i'), day: 1 },
+    { re: new RegExp(`DAY\\s*${I}(?!${I})`, 'i'), day: 1 },
+    { re: new RegExp(`D.?Y\\s*${I}(?!${I})`, 'i'), day: 1 },
+    { re: /D[I1L]?A\s*1/i, day: 1 },
+    { re: /D.?Y\s*1/i, day: 1 },
   ];
   for (const p of patterns) {
-    if (p.re.test(normalized)) return p.day;
+    if (p.re.test(t)) {
+      console.log('[Day OCR] matched day', p.day, 'from:', JSON.stringify(t));
+      return p.day;
+    }
   }
   return null;
 }
 
 function startOCR() {
-  const cfg = settings.get();
-  const hasRunes = !!cfg.ocrRuneRegion;
-  const hasLevel = !!cfg.ocrLevelRegion;
-
   stopOCR();
 
   ocrInterval = setInterval(async () => {
@@ -288,11 +341,12 @@ function startOCR() {
     isOCRRunning = true;
 
     try {
+      const cfg = settings.get();
       const thumbnail = await captureScreen();
       if (!thumbnail) return;
 
       // OCR rune count
-      if (hasRunes) {
+      if (cfg.ocrRuneRegion) {
         const runeImage = cropRegion(thumbnail, cfg.ocrRuneRegion);
         const runeResult = await ocrWorker.recognizeRunes(runeImage);
         if (overlayWin && runeResult.confidence > 40) {
@@ -305,7 +359,7 @@ function startOCR() {
       }
 
       // OCR level number
-      if (hasLevel) {
+      if (cfg.ocrLevelRegion) {
         const levelImage = cropRegion(thumbnail, cfg.ocrLevelRegion);
         const levelResult = await ocrWorker.recognizeRunes(levelImage);
         if (levelResult.value != null && levelResult.confidence > 40) {
@@ -317,17 +371,28 @@ function startOCR() {
         }
       }
 
-      // Auto-detect day from center screen text
+      // Auto-detect day from screen text
       const now = Date.now();
+      const dayRegion = cfg.ocrDayRegion || getCenterRegion();
       if (now - lastDayDetectTime > DAY_DETECT_COOLDOWN_MS) {
-        const centerRegion = getCenterRegion();
-        const centerImage = cropRegion(thumbnail, centerRegion);
-        const textResult = await ocrWorker.recognizeText(centerImage);
+        const { png, whiteRatio } = cropAndPreprocess(thumbnail, dayRegion);
 
-        if (textResult.confidence > 30) {
+        // Only attempt OCR if there's enough white text in the region
+        if (whiteRatio > 0.08) {
+          const textResult = await ocrWorker.recognizeText(png);
+          if (textResult.raw.length > 0) {
+            console.log('[Day OCR] ratio:', (whiteRatio * 100).toFixed(1) + '%', 'text:', JSON.stringify(textResult.raw));
+          }
+
           const detectedDay = tryDetectDay(textResult.raw);
-          if (detectedDay != null && detectedDay !== currentDay) {
+          // Only accept the expected next day in sequence (1→2→3→1)
+          const expectedNext = currentDay >= 3 ? 1 : currentDay + 1;
+          const isNewDay = detectedDay != null && detectedDay !== currentDay;
+          const isExpected = detectedDay === expectedNext || currentDay === 0;
+
+          if (isNewDay && isExpected) {
             lastDayDetectTime = now;
+            console.log('[Day OCR] STARTING day', detectedDay);
             currentDay = detectedDay - 1;
             startDayTimer();
             if (overlayWin) {
@@ -341,7 +406,7 @@ function startOCR() {
     } finally {
       isOCRRunning = false;
     }
-  }, cfg.ocrIntervalMs);
+  }, settings.get().ocrIntervalMs);
 }
 
 function stopOCR() {
@@ -417,6 +482,8 @@ function setupIPC() {
       settings.save({ ocrRuneRegion: region });
     } else if (type === 'level') {
       settings.save({ ocrLevelRegion: region });
+    } else if (type === 'day') {
+      settings.save({ ocrDayRegion: region });
 
       if (calibrationWin) {
         calibrationWin.close();

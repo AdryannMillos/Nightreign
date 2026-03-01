@@ -33,7 +33,7 @@ npm start
 | F6  | Start day timer (press again for Day 2, again for Day 3) |
 | F7  | Manual level up (+1) |
 | F8  | Manual level down (-1) |
-| F9  | Open OCR calibration (2-step: runes then level) |
+| F9  | Open OCR calibration (3-step: runes, level, day text) |
 | F10 | OCR speed faster |
 | F11 | OCR speed slower |
 
@@ -43,8 +43,8 @@ npm start
 2. Press **F9** to enter calibration mode
 3. **Step 1**: Draw a rectangle over the **rune counter number** (top-right of the screen)
 4. **Step 2**: Draw a rectangle over the **level number** (top-left, near the health bar)
-5. The overlay will begin reading both values automatically every 3 seconds
-6. Day detection works automatically — no calibration needed for that
+5. **Step 3**: Draw a rectangle over where **DIA 1 / DAY 1** appears (center of the screen when a day starts)
+6. The overlay will begin reading all values automatically every 3 seconds
 
 ## How It Works
 
