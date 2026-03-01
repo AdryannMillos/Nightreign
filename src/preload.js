@@ -23,4 +23,7 @@ contextBridge.exposeInMainWorld('nightreign', {
 
   // Day control
   onDayChange: (cb) => ipcRenderer.on('day:change', (_e, day) => cb(day)),
+
+  // Toast notifications
+  onToast: (cb) => ipcRenderer.on('toast', (_e, msg) => cb(msg)),
 });

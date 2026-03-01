@@ -58,8 +58,10 @@ function createOverlayWindow() {
   overlayWin.showInactive();
 
   // Re-assert on-top every second so the game can't bury the overlay
+  // Pauses while calibration is open so it doesn't cover that window
   keepOnTopInterval = setInterval(() => {
     if (!overlayWin || overlayWin.isDestroyed()) return;
+    if (calibrationWin) return;
     overlayWin.setAlwaysOnTop(false);
     overlayWin.setAlwaysOnTop(true, 'screen-saver');
     overlayWin.moveTop();
@@ -301,6 +303,25 @@ function stopOCR() {
   }
 }
 
+function adjustOCRSpeed(deltaMs) {
+  const cfg = settings.get();
+  const newInterval = Math.max(500, Math.min(10000, cfg.ocrIntervalMs + deltaMs));
+  if (newInterval === cfg.ocrIntervalMs) return;
+
+  settings.save({ ocrIntervalMs: newInterval });
+
+  // Restart OCR with new interval
+  if (cfg.ocrRuneRegion || cfg.ocrLevelRegion) {
+    stopOCR();
+    startOCR();
+  }
+
+  if (overlayWin) {
+    const seconds = (newInterval / 1000).toFixed(1);
+    overlayWin.webContents.send('toast', `OCR speed: ${seconds}s`);
+  }
+}
+
 // ─── Hotkeys ────────────────────────────────────────────────────────
 
 function registerHotkeys() {
@@ -328,6 +349,15 @@ function registerHotkeys() {
 
   globalShortcut.register(keys.levelDown, () => {
     setLevel(-1);
+  });
+
+  // OCR speed: F10 faster, F11 slower
+  globalShortcut.register('F10', () => {
+    adjustOCRSpeed(-500);
+  });
+
+  globalShortcut.register('F11', () => {
+    adjustOCRSpeed(500);
   });
 
   globalShortcut.register(keys.calibrate, () => {

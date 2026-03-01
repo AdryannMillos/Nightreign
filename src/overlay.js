@@ -164,6 +164,20 @@ window.nightreign.onVisibilityToggle(() => {
   els.overlay.style.display = isVisible ? 'block' : 'none';
 });
 
+// ─── Toast Notifications ────────────────────────────────────────────
+
+let toastTimeout = null;
+const toastEl = $('#toast');
+
+window.nightreign.onToast((msg) => {
+  toastEl.textContent = msg;
+  toastEl.classList.remove('hidden');
+  if (toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    toastEl.classList.add('hidden');
+  }, 2000);
+});
+
 // ─── Calibration ────────────────────────────────────────────────────
 
 window.nightreign.onCalibrationStart(() => {
