@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>OCR Calibration</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: rgba(0, 0, 0, 0.35);
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      cursor: crosshair;
+      font-family: 'Segoe UI', sans-serif;
+      user-select: none;
+    }
+
+    #instructions {
+      position: fixed;
+      top: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 12, 8, 0.9);
+      border: 1px solid rgba(201, 168, 76, 0.5);
+      border-radius: 8px;
+      padding: 16px 28px;
+      text-align: center;
+      color: #e8dcc8;
+      z-index: 10;
+    }
+
+    #instructions h2 {
+      font-size: 14px;
+      color: #c9a84c;
+      margin-bottom: 6px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    #instructions p {
+      font-size: 12px;
+      color: #a89878;
+      line-height: 1.5;
+    }
+
+    #instructions .key {
+      display: inline-block;
+      background: rgba(201, 168, 76, 0.2);
+      border: 1px solid rgba(201, 168, 76, 0.4);
+      border-radius: 3px;
+      padding: 1px 6px;
+      font-size: 11px;
+      color: #c9a84c;
+    }
+
+    #selection {
+      position: fixed;
+      border: 2px solid #c9a84c;
+      background: rgba(201, 168, 76, 0.1);
+      display: none;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    #selection-info {
+      position: fixed;
+      background: rgba(15, 12, 8, 0.85);
+      border: 1px solid rgba(201, 168, 76, 0.4);
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 10px;
+      color: #c9a84c;
+      display: none;
+      pointer-events: none;
+      z-index: 6;
+    }
+  </style>
+</head>
+<body>
+  <div id="instructions">
+    <h2>OCR Region Calibration</h2>
+    <p>
+      Draw a rectangle over the <strong>rune counter</strong> area (top-right of the game screen).<br>
+      Press <span class="key">ESC</span> or <span class="key">F9</span> to cancel.
+    </p>
+  </div>
+
+  <div id="selection"></div>
+  <div id="selection-info"></div>
+
+  <script>
+    const selEl = document.getElementById('selection');
+    const infoEl = document.getElementById('selection-info');
+
+    let startX = 0, startY = 0;
+    let isDragging = false;
+
+    document.addEventListener('mousedown', (e) => {
+      startX = e.screenX;
+      startY = e.screenY;
+      isDragging = true;
+
+      selEl.style.left = `${e.clientX}px`;
+      selEl.style.top = `${e.clientY}px`;
+      selEl.style.width = '0px';
+      selEl.style.height = '0px';
+      selEl.style.display = 'block';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+
+      const cx = Math.min(e.clientX, startX - window.screenX);
+      const cy = Math.min(e.clientY, startY - window.screenY);
+      const w = Math.abs(e.clientX - (startX - window.screenX));
+      const h = Math.abs(e.clientY - (startY - window.screenY));
+
+      selEl.style.left = `${cx}px`;
+      selEl.style.top = `${cy}px`;
+      selEl.style.width = `${w}px`;
+      selEl.style.height = `${h}px`;
+
+      infoEl.style.display = 'block';
+      infoEl.style.left = `${cx + w + 8}px`;
+      infoEl.style.top = `${cy}px`;
+      infoEl.textContent = `${w} x ${h}`;
+    });
+
+    document.addEventListener('mouseup', (e) => {
+      if (!isDragging) return;
+      isDragging = false;
+
+      const endX = e.screenX;
+      const endY = e.screenY;
+
+      const x = Math.min(startX, endX);
+      const y = Math.min(startY, endY);
+      const width = Math.abs(endX - startX);
+      const height = Math.abs(endY - startY);
+
+      if (width > 10 && height > 10) {
+        window.nightreign.sendCalibrationRegion({
+          x: Math.round(x),
+          y: Math.round(y),
+          width: Math.round(width),
+          height: Math.round(height),
+        });
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        window.close();
+      }
+    });
+  </script>
+</body>
+</html>

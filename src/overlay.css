@@ -1,0 +1,192 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: transparent;
+  font-family: 'Segoe UI', 'Consolas', monospace;
+  color: #e8dcc8;
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+  user-select: none;
+}
+
+#overlay {
+  width: 300px;
+  padding: 14px 16px 10px;
+  background: rgba(15, 12, 8, 0.82);
+  border: 1px solid rgba(175, 145, 80, 0.35);
+  border-radius: 6px;
+  box-shadow:
+    0 0 20px rgba(0, 0, 0, 0.6),
+    inset 0 0 30px rgba(175, 145, 80, 0.04);
+}
+
+/* ── Timer Section ─────────────────────────── */
+
+#timer-section {
+  margin-bottom: 8px;
+}
+
+#day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+#day-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #c9a84c;
+}
+
+#timer-display {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #f0e6d0;
+  text-shadow: 0 0 8px rgba(201, 168, 76, 0.4);
+}
+
+#phase-bar-container {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+#phase-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #5cb85c, #c9a84c);
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+#phase-bar.warning {
+  background: linear-gradient(90deg, #c9a84c, #d9831f);
+}
+
+#phase-bar.danger {
+  background: linear-gradient(90deg, #d9831f, #c9302c);
+}
+
+#phase-label {
+  font-size: 10px;
+  color: #a89878;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+#next-phase {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #887858;
+}
+
+#next-phase-time {
+  color: #c9a84c;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Divider ───────────────────────────────── */
+
+.divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(175, 145, 80, 0.3),
+    transparent
+  );
+  margin: 8px 0;
+}
+
+/* ── Rune Section ──────────────────────────── */
+
+#rune-section {
+  margin-bottom: 6px;
+}
+
+#level-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 5px;
+}
+
+#level-display {
+  font-size: 16px;
+  font-weight: 700;
+  color: #c9a84c;
+  text-shadow: 0 0 6px rgba(201, 168, 76, 0.3);
+}
+
+#rune-count {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: #d4c8a8;
+}
+
+#rune-bar-container {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+#rune-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #c9a84c, #e8d48c);
+  transition: width 0.4s ease;
+}
+
+#rune-needed {
+  font-size: 10px;
+  color: #887858;
+}
+
+#rune-needed .max-level {
+  color: #c9a84c;
+  font-weight: 600;
+}
+
+/* ── Hints ─────────────────────────────────── */
+
+#hints {
+  font-size: 8px;
+  text-align: center;
+  color: rgba(136, 120, 88, 0.5);
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+/* ── Calibration active indicator ──────────── */
+
+#overlay.calibrating #timer-section,
+#overlay.calibrating #rune-section {
+  opacity: 0.4;
+}
+
+#overlay.calibrating::after {
+  content: 'CALIBRATING OCR REGION...';
+  display: block;
+  text-align: center;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #d9831f;
+  margin-top: 6px;
+}

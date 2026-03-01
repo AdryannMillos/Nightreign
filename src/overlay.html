@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nightreign Overlay</title>
+  <link rel="stylesheet" href="overlay.css">
+</head>
+<body>
+  <div id="overlay">
+    <!-- Timer Section -->
+    <div id="timer-section">
+      <div id="day-header">
+        <span id="day-label">PRESS F6 TO START</span>
+        <span id="timer-display">--:--</span>
+      </div>
+      <div id="phase-bar-container">
+        <div id="phase-bar"></div>
+      </div>
+      <div id="phase-label">Waiting...</div>
+      <div id="next-phase">
+        <span id="next-phase-label"></span>
+        <span id="next-phase-time"></span>
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <div class="divider"></div>
+
+    <!-- Level & Runes Section -->
+    <div id="rune-section">
+      <div id="level-row">
+        <span id="level-display">Lv. 1</span>
+        <span id="rune-count">? runes</span>
+      </div>
+      <div id="rune-bar-container">
+        <div id="rune-bar"></div>
+      </div>
+      <div id="rune-needed">Next level: 3,698 runes</div>
+    </div>
+
+    <!-- Hotkey hints -->
+    <div id="hints">
+      F5 hide · F6 timer · F7/F8 lvl · F9 calibrate
+    </div>
+  </div>
+
+  <script src="overlay.js"></script>
+</body>
+</html>
