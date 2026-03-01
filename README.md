@@ -50,6 +50,8 @@ npm start
 5. **Step 3**: Draw a rectangle over where **DIA 1 / DAY 1** appears (center of the screen when a day starts)
 6. The overlay will begin reading all values automatically every 3 seconds
 
+**Tip:** Use `screenshot.png` in the project folder as a reference to see where each region should be drawn.
+
 ## How It Works
 
 The overlay uses Tesseract.js to OCR-read numbers directly from screen pixels. It never touches game memory or network traffic, so it is completely safe with Easy Anti-Cheat.
