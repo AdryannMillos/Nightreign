@@ -19,8 +19,11 @@ const RUNE_COSTS = [
 const MAX_LEVEL = 15;
 const MIN_LEVEL = 1;
 
+// Delay in seconds: when day appears, and between each phase
+const PHASE_DELAY = 5;
+
 // Phases for Day 1 and Day 2 — durations in seconds
-// Each phase has a duration; triggerAt is cumulative start time
+// Each phase has a duration; triggerAt is cumulative start time (includes delays)
 const DAY_PHASES = [
   { name: 'Storm',              duration: 270, shrinking: false, label: 'Storm'              },
   { name: 'Storm Shrinking',    duration: 180, shrinking: true,  label: 'Storm Shrinking'    },
@@ -28,16 +31,17 @@ const DAY_PHASES = [
   { name: 'Storm 2 Shrinking',  duration: 180, shrinking: true,  label: 'Storm 2 Shrinking'  },
 ];
 
-// Build cumulative trigger times
-let cumulative = 0;
-const TIDE_PHASES = DAY_PHASES.map((p) => {
+// Build cumulative trigger times with PHASE_DELAY between each phase
+let cumulative = PHASE_DELAY; // Initial delay before Storm starts
+const TIDE_PHASES = DAY_PHASES.map((p, i) => {
   const phase = { ...p, triggerAt: cumulative };
   cumulative += p.duration;
+  if (i < DAY_PHASES.length - 1) cumulative += PHASE_DELAY;
   return phase;
 });
 
 // Total time before boss fight starts
-const DAY_DURATION = cumulative; // 840s = 14:00
+const DAY_DURATION = cumulative;
 
 const BOSS_LABELS = {
   1: 'Night Boss',
@@ -58,6 +62,7 @@ module.exports = {
   RUNE_COSTS,
   MAX_LEVEL,
   MIN_LEVEL,
+  PHASE_DELAY,
   TIDE_PHASES,
   DAY_DURATION,
   BOSS_LABELS,

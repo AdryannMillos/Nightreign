@@ -169,28 +169,49 @@ function startDayTimer() {
       const phaseEnd = phase.triggerAt + phase.duration;
       const timeLeft = Math.max(0, phaseEnd - elapsed);
 
-      let nextLabel = '';
-      if (currentPhaseIndex < phases.length - 1) {
-        nextLabel = phases[currentPhaseIndex + 1].label;
+      // In the 5s delay between phases?
+      if (elapsed >= phaseEnd && elapsed < gameData.DAY_DURATION) {
+        const nextPhase = currentPhaseIndex < phases.length - 1
+          ? phases[currentPhaseIndex + 1]
+          : null;
+        const nextStart = nextPhase ? nextPhase.triggerAt : gameData.DAY_DURATION;
+        const delayLeft = Math.max(0, nextStart - elapsed);
+        const nextLabel = nextPhase ? nextPhase.label : (gameData.BOSS_LABELS[currentDay] || 'Boss Fight');
+        overlayWin.webContents.send('timer:update', {
+          day: currentDay,
+          currentPhase: `${nextLabel} in`,
+          phaseTimeLeft: Math.ceil(delayLeft),
+          phaseDuration: gameData.PHASE_DELAY,
+          isShrinking: false,
+          nextPhase: nextLabel,
+          phaseIndex: currentPhaseIndex,
+          isBossFight: false,
+        });
       } else {
-        nextLabel = gameData.BOSS_LABELS[currentDay] || 'Boss Fight';
+        let nextLabel = '';
+        if (currentPhaseIndex < phases.length - 1) {
+          nextLabel = phases[currentPhaseIndex + 1].label;
+        } else {
+          nextLabel = gameData.BOSS_LABELS[currentDay] || 'Boss Fight';
+        }
+        overlayWin.webContents.send('timer:update', {
+          day: currentDay,
+          currentPhase: phase.label,
+          phaseTimeLeft: Math.ceil(timeLeft),
+          phaseDuration: phase.duration,
+          isShrinking: phase.shrinking,
+          nextPhase: nextLabel,
+          phaseIndex: currentPhaseIndex,
+          isBossFight: false,
+        });
       }
-
-      overlayWin.webContents.send('timer:update', {
-        day: currentDay,
-        currentPhase: phase.label,
-        phaseTimeLeft: Math.ceil(timeLeft),
-        phaseDuration: phase.duration,
-        isShrinking: phase.shrinking,
-        nextPhase: nextLabel,
-        phaseIndex: currentPhaseIndex,
-        isBossFight: false,
-      });
     } else {
+      // Initial delay before Storm: show "Storm in X"
       const timeLeft = Math.max(0, phases[0].triggerAt - elapsed);
+      const isInitialDelay = elapsed < phases[0].triggerAt;
       overlayWin.webContents.send('timer:update', {
         day: currentDay,
-        currentPhase: 'Storm',
+        currentPhase: isInitialDelay ? 'Storm in' : 'Storm',
         phaseTimeLeft: Math.ceil(timeLeft),
         phaseDuration: phases[0].triggerAt,
         isShrinking: false,
