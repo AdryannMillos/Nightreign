@@ -15,25 +15,26 @@ const I = '[I1L]';
 // against most false-positive matches, but ordering is the primary safeguard.
 const PATTERNS = [
   // Day 3 — DIA/DAY + III or literal 3
-  { re: new RegExp(`D${I}?A\\s*${I}${I}${I}`, 'i'), day: 3 },
-  { re: new RegExp(`DAY\\s*${I}${I}${I}`, 'i'),     day: 3 },
-  { re: new RegExp(`D.?Y\\s*${I}${I}${I}`, 'i'),    day: 3 },
-  { re: /D[I1L]?A\s*3/i,                             day: 3 },
-  { re: /D.?Y\s*3/i,                                 day: 3 },
+  // \b before D prevents matching D inside a longer word (e.g. "BANDAI").
+  { re: new RegExp(`\\bD${I}?A\\s*${I}${I}${I}\\b`, 'i'), day: 3 },
+  { re: new RegExp(`\\bDAY\\s*${I}${I}${I}\\b`, 'i'),     day: 3 },
+  { re: new RegExp(`\\bD.?Y\\s*${I}${I}${I}\\b`, 'i'),    day: 3 },
+  { re: /\bD[I1L]?A\s*3\b/i,                               day: 3 },
+  { re: /\bD.?Y\s*3\b/i,                                   day: 3 },
 
   // Day 2 — DIA/DAY + II or literal 2 (negative lookahead avoids matching III)
-  { re: new RegExp(`D${I}?A\\s*${I}${I}(?!${I})`, 'i'), day: 2 },
-  { re: new RegExp(`DAY\\s*${I}${I}(?!${I})`, 'i'),     day: 2 },
-  { re: new RegExp(`D.?Y\\s*${I}${I}(?!${I})`, 'i'),    day: 2 },
-  { re: /D[I1L]?A\s*2/i,                                 day: 2 },
-  { re: /D.?Y\s*2/i,                                     day: 2 },
+  { re: new RegExp(`\\bD${I}?A\\s*${I}${I}(?!${I})`, 'i'), day: 2 },
+  { re: new RegExp(`\\bDAY\\s*${I}${I}(?!${I})`, 'i'),     day: 2 },
+  { re: new RegExp(`\\bD.?Y\\s*${I}${I}(?!${I})`, 'i'),    day: 2 },
+  { re: /\bD[I1L]?A\s*2\b/i,                                day: 2 },
+  { re: /\bD.?Y\s*2\b/i,                                    day: 2 },
 
   // Day 1 — DIA/DAY + I or literal 1 (negative lookahead avoids matching II/III)
-  { re: new RegExp(`D${I}?A\\s*${I}(?!${I})`, 'i'), day: 1 },
-  { re: new RegExp(`DAY\\s*${I}(?!${I})`, 'i'),     day: 1 },
-  { re: new RegExp(`D.?Y\\s*${I}(?!${I})`, 'i'),    day: 1 },
-  { re: /D[I1L]?A\s*1/i,                             day: 1 },
-  { re: /D.?Y\s*1/i,                                 day: 1 },
+  { re: new RegExp(`\\bD${I}?A\\s*${I}(?!${I})`, 'i'), day: 1 },
+  { re: new RegExp(`\\bDAY\\s*${I}(?!${I})`, 'i'),     day: 1 },
+  { re: new RegExp(`\\bD.?Y\\s*${I}(?!${I})`, 'i'),    day: 1 },
+  { re: /\bD[I1L]?A\s*1\b/i,                            day: 1 },
+  { re: /\bD.?Y\s*1\b/i,                                day: 1 },
 ];
 
 /**

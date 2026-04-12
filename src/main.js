@@ -42,6 +42,11 @@ const OCR_CONFIDENCE_THRESHOLD = 40;
 // so a single on-screen "DAY 1" banner doesn't re-trigger the timer.
 const DAY_DETECT_COOLDOWN_MS = 30000;
 
+// How many milliseconds to rewind the timer start when OCR triggers a day.
+// The day banner appears a moment before OCR fires (OCR runs every ~3 s) so
+// without this offset the timer would lag behind the real in-game clock.
+const DAY_DETECT_OFFSET_MS = 3000;
+
 // ─── State ──────────────────────────────────────────────────────────
 let overlayWin     = null;
 let calibrationWin = null;
@@ -149,14 +154,16 @@ function createCalibrationWindow() {
 
 /**
  * Start (or restart) the day timer for the given day number.
- * Accepts an explicit day so callers don't need to pre-mutate `currentDay`.
  *
  * @param {1|2|3} targetDay
+ * @param {number} [offsetMs=0] Milliseconds to rewind the start time.
+ *   Pass DAY_DETECT_OFFSET_MS when called from OCR so the clock accounts for
+ *   the lag between when the banner first appeared and when OCR noticed it.
  */
-function startDayTimer(targetDay) {
+function startDayTimer(targetDay, offsetMs = 0) {
   stopDayTimer();
   currentDay = targetDay;
-  timerStartTime = Date.now();
+  timerStartTime = Date.now() - offsetMs;
 
   if (overlayWin) overlayWin.webContents.send('day:change', currentDay);
 
@@ -402,7 +409,7 @@ function startOCR() {
         if (isNewDay && isExpected) {
           lastDayDetectTime = now;
           console.log('[Day OCR] STARTING day', detectedDay);
-          startDayTimer(detectedDay);
+          startDayTimer(detectedDay, DAY_DETECT_OFFSET_MS);
           if (overlayWin) {
             overlayWin.webContents.send('toast', `Day ${detectedDay} detected`);
           }
