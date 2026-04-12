@@ -3,7 +3,7 @@ const RUNE_COSTS = [
   { level: 2,  cost: 3698,  total: 3698 },
   { level: 3,  cost: 7922,  total: 11620 },
   { level: 4,  cost: 12348, total: 23968 },
-  { level: 5,  cost: 16798, total: 40946 },
+  { level: 5,  cost: 16978, total: 40946 },
   { level: 6,  cost: 21818, total: 62764 },
   { level: 7,  cost: 26869, total: 89633 },
   { level: 8,  cost: 32137, total: 121770 },
