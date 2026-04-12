@@ -102,7 +102,12 @@ function updateRuneDisplay() {
 
 window.nightreign.onBossData((data) => {
   bosses = data;
-  if (bosses.length > 0) renderBoss();
+  if (bosses.length > 0) {
+    renderBoss();
+    // Show the boss panel immediately on load — don't wait for the day timer
+    // to start. The user should see the cheatsheet as soon as the overlay opens.
+    if (bossVisible) bossPanel.classList.remove('hidden');
+  }
 });
 
 function renderBoss() {

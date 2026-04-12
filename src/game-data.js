@@ -19,13 +19,15 @@ const RUNE_COSTS = [
 const MAX_LEVEL = 15;
 const MIN_LEVEL = 1;
 
-// Delay in seconds: when day appears, and between each phase
-const PHASE_DELAY = 5;
+// There is no mechanical gap between phases — the game transitions instantly.
+// Keeping this at 0 avoids drift. (Community source code confirms no inter-phase delay.)
+const PHASE_DELAY = 0;
 
-// Phases for Day 1 and Day 2 — durations in seconds
-// Each phase has a duration; triggerAt is cumulative start time (includes delays)
+// Phases for Day 1 and Day 2 — durations in seconds.
+// Storm = 272s confirmed by community timer source code (4*60+32).
+// All other durations match community consensus (180 / 210 / 180).
 const DAY_PHASES = [
-  { name: 'Storm',              duration: 270, shrinking: false, label: 'Storm'              },
+  { name: 'Storm',              duration: 272, shrinking: false, label: 'Storm'              },
   { name: 'Storm Shrinking',    duration: 180, shrinking: true,  label: 'Storm Shrinking'    },
   { name: 'Storm 2',            duration: 210, shrinking: false, label: 'Storm 2'            },
   { name: 'Storm 2 Shrinking',  duration: 180, shrinking: true,  label: 'Storm 2 Shrinking'  },

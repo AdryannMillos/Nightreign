@@ -52,6 +52,33 @@ npm start
 
 **Tip:** Use `screenshot.png` in the project folder as a reference to see where each region should be drawn.
 
+## Launching with the Game
+
+The overlay auto-shows when Nightreign starts and hides when it exits — no manual toggling needed.
+
+### Option 1 — Steam launch options (recommended)
+
+1. In Steam, right-click **ELDEN RING: Nightreign** → **Properties** → **Launch Options**
+2. Paste the following (update the path to match where you cloned this repo):
+
+```
+cmd /c "C:\path\to\Nightreign\start.bat" && %command%
+```
+
+The overlay will launch silently in the background, appear once the game process starts, and disappear when you close the game.
+
+### Option 2 — Desktop shortcut
+
+Right-click **`start.bat`** → **Create shortcut** → place it wherever you like. Run it before or at the same time as the game; the overlay will show automatically when the game is detected.
+
+### If the overlay doesn't appear
+
+The watcher looks for `nightreign.exe` and `ELDENRING.exe` by default. If neither matches your installation, open `%APPDATA%\Roaming\nightreign\nightreign-settings.json` and update `gameProcessNames` to the actual executable name (check Task Manager while the game is running):
+
+```json
+"gameProcessNames": ["your-game.exe"]
+```
+
 ## How It Works
 
 The overlay uses Tesseract.js to OCR-read numbers directly from screen pixels. It never touches game memory or network traffic, so it is completely safe with Easy Anti-Cheat.

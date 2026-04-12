@@ -21,7 +21,11 @@ async function init() {
     textWorker = await createWorker('eng', 1, { logger: () => {} });
     await textWorker.setParameters({
       tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 ',
-      tessedit_pageseg_mode:   '7',
+      // PSM 11 (sparse text) finds words anywhere in the image without
+      // assuming a single uniform text block. This is more robust for the
+      // day-detection region where "DIA I" can appear at varying positions
+      // depending on camera angle and screen resolution.
+      tessedit_pageseg_mode:   '11',
     });
   }
 }

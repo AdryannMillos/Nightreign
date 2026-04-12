@@ -10,6 +10,9 @@ const DEFAULTS = {
   ocrDayRegion: null,   // { x, y, width, height } — day text (center screen)
   overlayPosition: { x: -1, y: 10 },
   ocrIntervalMs: 3000,
+  // Process names checked by game-watcher. Add your own if the game executable
+  // differs (e.g. after a Nightreign update renames the binary).
+  gameProcessNames: ['nightreign.exe', 'ELDENRING.exe'],
   hotkeys: {
     toggleOverlay: 'F5',
     startTimer: 'F6',

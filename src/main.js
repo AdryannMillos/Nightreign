@@ -11,18 +11,29 @@ const fs   = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 
-const settings    = require('./settings');
-const gameData    = require('./game-data');
-const bossData    = require('./boss-data');
-const ocrWorker   = require('./ocr-worker');
+const settings     = require('./settings');
+const gameData     = require('./game-data');
+const bossData     = require('./boss-data');
+const ocrWorker    = require('./ocr-worker');
+const gameWatcher  = require('./game-watcher');
 const { tryDetectDay }  = require('./day-detector');
 const { getPhaseState } = require('./timer-engine');
 
 // ─── OCR tuning constants ────────────────────────────────────────────
 // Minimum fraction of the day-detection region that must contain near-white
-// pixels before we bother running Tesseract. Avoids false positives when the
-// region is mostly dark sky / gameplay background.
-const MIN_WHITE_RATIO = 0.08;
+// pixels before we bother running Tesseract.
+//
+// Set intentionally low (0.5%) so it only skips frames where the region is
+// pitch-dark (no text at all) and lets through any frame with actual bright
+// UI text. The day banner text itself is always bright-white regardless of
+// camera angle — only the background sky changes. This means even a dark-angle
+// frame with "DIA I" visible will clear this gate, while a frame showing
+// pure gameplay content with no bright text will not.
+//
+// Previous value of 4% was too high: dark-angle frames where background
+// near-white pixels dropped to 0% were blocked even when real text was present.
+// Removing the gate entirely caused false positives from other on-screen text.
+const MIN_WHITE_RATIO = 0.005;
 
 // Minimum Tesseract confidence score (0-100) to accept an OCR result.
 const OCR_CONFIDENCE_THRESHOLD = 40;
@@ -76,7 +87,6 @@ function createOverlayWindow() {
   overlayWin.setIgnoreMouseEvents(true);
   overlayWin.setAlwaysOnTop(true, 'screen-saver');
   overlayWin.setVisibleOnAllWorkspaces(true);
-  overlayWin.showInactive();
 
   // Re-assert on-top every second so the game can't bury the overlay.
   // Pauses while calibration is open so it doesn't cover that window.
@@ -275,19 +285,47 @@ function cropAndPreprocess(thumbnail, region) {
   return { png: processed.toPNG(), whiteRatio };
 }
 
-/**
- * Fall-back region used for day detection when the user has not calibrated.
- * Covers the centre-bottom portion of the screen where "DAY X" typically appears.
- */
-function getCenterRegion() {
+// ─── Default OCR regions (calibrated from 1920×1080 screenshot) ─────
+//
+// All positions are expressed as fractions of the display so they scale
+// correctly on any resolution without requiring manual calibration.
+//
+// Measured with pixel scanning on screenshot.png (1920×1080):
+//   "DIA I" text  → x=779–1101, y=430–460  (centre of screen, ~40% down)
+//   Level "1"     → x=100–167,  y=55–68    (top-left, below health bars)
+//   Rune counter  → x=1682–1854, y=57–78   (top-right corner)
+
+function getDefaultDayRegion() {
   const { width: sw, height: sh } = screen.getPrimaryDisplay().size;
-  const w = Math.round(sw * 0.30);
-  const h = Math.round(sh * 0.12);
+  // Tight band around where "DIA I" / "DAY 1" appears.
+  // Pixel-measured from screenshot.png (1920×1080): text at x=779-1101, y=428-462.
+  const w = Math.round(sw * 0.26); // ~500 px for 1920 — snug around the text
+  const h = Math.round(sh * 0.06); // ~65 px for 1080
   return {
-    x:      Math.round((sw - w) / 2),
-    y:      Math.round(sh * 0.50),
+    x:      Math.round((sw - w) / 2), // horizontally centered (~x=710 for 1920)
+    y:      Math.round(sh * 0.385),   // ~416 px for 1080; text peaks at y=430-460
     width:  w,
     height: h,
+  };
+}
+
+function getDefaultLevelRegion() {
+  const { width: sw, height: sh } = screen.getPrimaryDisplay().size;
+  return {
+    x:      Math.round(sw * 0.04),
+    y:      Math.round(sh * 0.04),
+    width:  Math.round(sw * 0.07),
+    height: Math.round(sh * 0.05),
+  };
+}
+
+function getDefaultRuneRegion() {
+  const { width: sw, height: sh } = screen.getPrimaryDisplay().size;
+  return {
+    x:      Math.round(sw * 0.86),
+    y:      Math.round(sh * 0.04),
+    width:  Math.round(sw * 0.13),
+    height: Math.round(sh * 0.04),
   };
 }
 
@@ -304,8 +342,9 @@ function startOCR() {
       if (!thumbnail) return;
 
       // ── Rune count ────────────────────────────────────────────────
-      if (cfg.ocrRuneRegion) {
-        const runeImage  = cropRegion(thumbnail, cfg.ocrRuneRegion);
+      const runeRegion = cfg.ocrRuneRegion || getDefaultRuneRegion();
+      {
+        const runeImage  = cropRegion(thumbnail, runeRegion);
         const runeResult = await ocrWorker.recognizeRunes(runeImage);
         if (overlayWin && runeResult.confidence > OCR_CONFIDENCE_THRESHOLD) {
           overlayWin.webContents.send('rune:ocr', {
@@ -317,8 +356,9 @@ function startOCR() {
       }
 
       // ── Player level ──────────────────────────────────────────────
-      if (cfg.ocrLevelRegion) {
-        const levelImage  = cropRegion(thumbnail, cfg.ocrLevelRegion);
+      const levelRegion = cfg.ocrLevelRegion || getDefaultLevelRegion();
+      {
+        const levelImage  = cropRegion(thumbnail, levelRegion);
         const levelResult = await ocrWorker.recognizeRunes(levelImage);
         if (levelResult.value != null && levelResult.confidence > OCR_CONFIDENCE_THRESHOLD) {
           const detected = levelResult.value;
@@ -335,36 +375,36 @@ function startOCR() {
 
       // ── Day auto-detection ────────────────────────────────────────
       const now       = Date.now();
-      const dayRegion = cfg.ocrDayRegion || getCenterRegion();
+      const dayRegion = cfg.ocrDayRegion || getDefaultDayRegion();
 
       if (now - lastDayDetectTime > DAY_DETECT_COOLDOWN_MS) {
         const { png, whiteRatio } = cropAndPreprocess(thumbnail, dayRegion);
 
-        if (whiteRatio > MIN_WHITE_RATIO) {
-          const textResult = await ocrWorker.recognizeText(png);
+        const textResult = whiteRatio > MIN_WHITE_RATIO
+          ? await ocrWorker.recognizeText(png)
+          : { raw: '', confidence: 0 };
 
-          if (textResult.raw.length > 0) {
-            console.log(
-              '[Day OCR] ratio:', (whiteRatio * 100).toFixed(1) + '%',
-              'text:', JSON.stringify(textResult.raw),
-            );
-          }
+        if (textResult.raw.length > 0) {
+          console.log(
+            '[Day OCR] ratio:', (whiteRatio * 100).toFixed(1) + '%',
+            'text:', JSON.stringify(textResult.raw),
+          );
+        }
 
-          const detectedDay = tryDetectDay(textResult.raw);
+        const detectedDay = tryDetectDay(textResult.raw);
 
-          // Only accept the expected next day in sequence (1 → 2 → 3 → 1).
-          // This prevents stale or spurious matches from resetting the timer.
-          const expectedNext = currentDay >= 3 ? 1 : currentDay + 1;
-          const isNewDay     = detectedDay != null && detectedDay !== currentDay;
-          const isExpected   = detectedDay === expectedNext || currentDay === 0;
+        // Only accept the expected next day in sequence (1 → 2 → 3 → 1).
+        // This prevents stale or spurious matches from resetting the timer.
+        const expectedNext = currentDay >= 3 ? 1 : currentDay + 1;
+        const isNewDay     = detectedDay != null && detectedDay !== currentDay;
+        const isExpected   = detectedDay === expectedNext || currentDay === 0;
 
-          if (isNewDay && isExpected) {
-            lastDayDetectTime = now;
-            console.log('[Day OCR] STARTING day', detectedDay);
-            startDayTimer(detectedDay);
-            if (overlayWin) {
-              overlayWin.webContents.send('toast', `Day ${detectedDay} detected`);
-            }
+        if (isNewDay && isExpected) {
+          lastDayDetectTime = now;
+          console.log('[Day OCR] STARTING day', detectedDay);
+          startDayTimer(detectedDay);
+          if (overlayWin) {
+            overlayWin.webContents.send('toast', `Day ${detectedDay} detected`);
           }
         }
       }
@@ -381,6 +421,35 @@ function stopOCR() {
     clearInterval(ocrInterval);
     ocrInterval = null;
   }
+}
+
+// ─── Game process watching ───────────────────────────────────────────
+
+function showOverlay() {
+  if (!overlayWin || overlayWin.isDestroyed()) return;
+  overlayWin.showInactive();
+  // Restart OCR so it picks up any settings changes that happened while hidden
+  stopOCR();
+  startOCR();
+  console.log('[Watcher] Game started — overlay visible');
+}
+
+function hideOverlay() {
+  if (!overlayWin || overlayWin.isDestroyed()) return;
+  overlayWin.hide();
+  stopOCR();
+  stopDayTimer();
+  console.log('[Watcher] Game exited — overlay hidden');
+}
+
+function startGameWatcher() {
+  const cfg = settings.get();
+  const processNames = cfg.gameProcessNames || gameWatcher.DEFAULT_PROCESS_NAMES;
+  gameWatcher.startWatching({
+    processNames,
+    onStart: showOverlay,
+    onStop:  hideOverlay,
+  });
 }
 
 function adjustOCRSpeed(deltaMs) {
@@ -504,13 +573,22 @@ app.whenReady().then(async () => {
   registerHotkeys();
 
   await ocrWorker.init();
+
+  // Show the overlay and start OCR immediately on launch.
+  // The game watcher adds convenience on top: it hides the overlay when the
+  // game exits and re-shows it (restarting OCR) when the game launches again.
+  // But the overlay works without the watcher — useful for testing with a
+  // screenshot or any other fullscreen content.
+  overlayWin.showInactive();
   startOCR();
+  startGameWatcher();
 });
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   stopDayTimer();
   stopOCR();
+  gameWatcher.stopWatching();
   ocrWorker.terminate();
   if (keepOnTopInterval) {
     clearInterval(keepOnTopInterval);
